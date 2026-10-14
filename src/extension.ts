@@ -93,6 +93,14 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
   pi.on("session_start", (_event, ctx) => {
     visible = true;
+    if (ctx.mode === "tui" && panel) {
+      activeContext = ctx;
+      inventoryFingerprint = undefined;
+      handle?.setHidden(false);
+      refresh();
+      startRefreshTimer();
+      return;
+    }
     mount(ctx);
   });
 

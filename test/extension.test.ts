@@ -95,6 +95,62 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   assert.ok(renders >= 2);
 });
 
+test("restores one existing overlay into the new TUI session context", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const hidden: boolean[] = [];
+  const firstStatuses: [string, string | undefined][] = [];
+  const secondStatuses: [string, string | undefined][] = [];
+  let customCalls = 0;
+
+  const pi = {
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [
+      {
+        name: "mcp__context7__query_docs",
+        namespace: { name: "mcp__context7" },
+        exposure: "deferred",
+      },
+    ],
+  };
+  const theme = { fg: (_tone: string, text: string) => text };
+  const makeContext = (statuses: [string, string | undefined][]) => ({
+    mode: "tui",
+    ui: {
+      setStatus: (key: string, value: string | undefined) => statuses.push([key, value]),
+      notify: () => {},
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        customCalls++;
+        options.onHandle?.({ setHidden: (value: boolean) => hidden.push(value) });
+        return new Promise<void>((resolve) => {
+          factory({ requestRender: () => {} }, theme, {}, () => resolve());
+        });
+      },
+    },
+  });
+  const firstContext = makeContext(firstStatuses);
+  const secondContext = makeContext(secondStatuses);
+
+  extension(pi as any);
+  try {
+    events.get("session_start")?.({}, firstContext);
+    await commands.get("mcp-sidebar")?.handler("", firstContext);
+    assert.deepEqual(hidden, [true]);
+
+    events.get("session_start")?.({}, secondContext);
+
+    assert.equal(customCalls, 1);
+    assert.deepEqual(hidden, [true, false]);
+    assert.deepEqual(secondStatuses.at(-1), ["mcp-sidebar", "1 MCP namespace"]);
+  } finally {
+    events.get("session_shutdown")?.();
+  }
+});
+
 test("refreshes deferred MCP inventory while idle and stops polling on shutdown", () => {
   const events = new Map<string, (...args: any[]) => void>();
   const statuses: [string, string | undefined][] = [];

@@ -11,8 +11,8 @@ Branch: `feat/ux-hardening-v0.1` · Test runner: Node test runner + TypeScript t
 
 - **T1** · S1-S2 · inline (real TUI baseline and bounded evidence capture) · done · commit: `625f329`
 - **T2** · S2 · inline (reproduce the real MCP inventory mismatch and determine the public-API route test-first) · done · commit: `eab0548`
-- **T3** · S2 · inline (test-first rendering edge hardening) · done · commit: pending
-- **T4** · S2 · inline (test-first repeated-session lifecycle hardening) · pending · commit: pending
+- **T3** · S2 · inline (test-first rendering edge hardening) · done · commit: `62d3980`
+- **T4** · S2 · inline (test-first repeated-session lifecycle hardening) · done · commit: pending
 - **T5** · S2 · inline (final interactive proof, screenshots, and documentation) · pending · commit: pending
 
 ## Log
@@ -27,3 +27,5 @@ Branch: `feat/ux-hardening-v0.1` · Test runner: Node test runner + TypeScript t
 - **L8 — T2 independent verification:** Timer/concurrency verification passed: one timer per overlay, deferred discovery, unchanged-render suppression, truthful wording, shutdown/custom-completion cleanup, and existing toggle/`agent_end` compatibility. The verifier correctly left full S2 incomplete because T3-T5 remain pending.
 - **L9 — T3 RED/GREEN:** RED reproduced two rendering defects: long namespace labels removed the exact tool count, and a 12-namespace inventory had no bounded overflow path. The renderer now reserves the count column, presents the disclaimer before server rows, displays at most eight rows, and adds `Showing 8 of N · /mcp`. Focused tests passed 6/6 and the combined focused set passed 9/9; typecheck and diff checks passed.
 - **L10 — T3 verifier correction:** Independent rendering verification confirmed ASCII/wide-Unicode count preservation, ANSI visible-width safety, normal-row compatibility, and bounded 0/1/8/9/120 inventories, but found `/mcp` truncated at configured `minWidth: 28`. A RED public-options assertion reproduced `28 !== 29`; raising the supported minimum to 29 made the exact disclaimer fit. Bounded re-verification then passed 9/9 focused tests, typecheck, and all 4 independent renderer probes. T3 is complete; T4-T5 remain pending.
+- **L11 — T4 RED/GREEN:** RED reproduced a hidden overlay remaining hidden after a repeated TUI `session_start`. The lifecycle now rebinds the active context, invalidates and refreshes its inventory snapshot, unhides the existing handle, and reuses the singleton timer without mounting another overlay. Focused tests passed 4/4; the full suite passed 10/10; typecheck and diff checks passed.
+- **L12 — T4 interactive and independent proof:** In Pi 1.2.0, `/mcp-sidebar` hid the overlay, `/new` started a new session, the same overlay became visible again, and idle refresh repopulated all eight configured MCP namespaces. Independent verification reproduced baseline RED and candidate GREEN while confirming one overlay/timer, context/status rebinding, changed/unchanged inventory, toggle, `agent_end`, custom completion, remount, idempotent shutdown, and unchanged print-mode behavior. T4 is complete; only T5 remains.
