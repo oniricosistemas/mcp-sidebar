@@ -1,6 +1,6 @@
 # MCP Sidebar MVP
 Objective: Create and publish a usable Pi extension that surfaces MCP availability in a right-side TUI panel.
-Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-branch-chain` · Test runner: Node test runner + TypeScript typecheck · Forecast: ~360 authored lines (binary logo excluded).
+Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-branch-chain` · Test runner: Node test runner + TypeScript typecheck · Forecast: ~360 · Running: 654 authored lines (lockfile and binary logo excluded).
 
 ## Specs
 
@@ -14,7 +14,7 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 - **T1** · S2 · inline (no Writer-rule trigger; cohesive foundation) · done · commit: `2aadc51`
 - **T2** · S3 · inline (CLI enrollment and verification) · done · commit: `95fd69c`
 - **T3** · S1, S4 · inline (single cohesive behavior; test-first) · done · commit: `4794b07`
-- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · in progress · commit: `9dd27c1` (delivery plan; final evidence pending)
+- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · in progress · commits: `9dd27c1`, `491c51f`, `f8f0f90` (final evidence and remote publication pending)
 
 ## Log
 
@@ -32,4 +32,7 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 - **L9 — Delivery budget:** Running authored change count is 551 lines excluding the generated lockfile and binary logo, so `ask-on-risk` requires a delivery-strategy selection before the next commit.
 - **L10 — Delivery decision:** User selected `feature-branch-chain`; cache `delivery_strategy=auto-chain` and `chain_strategy=feature-branch-chain`. Planned slices: tracker `feat/mcp-sidebar` → foundation `chore/mcp-sidebar-foundation` → MVP `feat/mcp-sidebar-mvp`.
 - **L11 — Chain prepared:** Verified default branch `main`; created tracker `feat/mcp-sidebar` at `9d051ac`, foundation child `chore/mcp-sidebar-foundation` through `95fd69c`, and MVP child `feat/mcp-sidebar-mvp` through `9dd27c1`. Rebase changed work-unit identities and the task records now use the rebased commits.
-- **L12 — Next:** Run final integration and independent high-risk verification, update durable evidence, and request the separate remote authorization required for issue/branch/PR publication.
+- **L12 — Native assessment correction:** Native high-risk assessment identified ordinary package files as executable. Commit `491c51f` normalized all tracked package files to mode `100644`; reassessment retained high risk only because mode changes are part of the candidate.
+- **L13 — Independent verification:** First pass found no product defect but required independent S2/S3 evidence and actual Pi-host loading. Correction commit `f8f0f90` added lifecycle/inventory tests and corrected README behavior. Focused tests passed 2/2, full tests passed 6/6, typecheck and diff checks passed.
+- **L14 — Blocker recheck:** GitHub independently reported the repository PUBLIC on `main`; upstream/local logo hashes matched; Engram reported enrolled with `Local chunks: 12`, `Remote chunks: 12`, `Pending import: 0`; Pi's documented `DefaultResourceLoader` loaded `src/extension.ts` with command `mcp-sidebar`, no errors, and no warnings. S2, S3, and S4 all passed. Interactive visual smoke testing remains unperformed and is not claimed.
+- **L15 — Next:** Commit final evidence, complete the RDD high-risk review path, then request the separate remote authorization required for tracking issue, branch pushes, and chained draft PR publication.
