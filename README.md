@@ -15,6 +15,12 @@
 > This project is an early MVP. Pi currently exposes overlays, not a width-reserving sidebar slot,
 > so the panel behaves as a responsive right-side overlay.
 
+<div align="center">
+  <img src="assets/mcp-sidebar-tui.svg" alt="MCP Sidebar showing eight MCP tool namespaces in Pi" width="420" />
+  <br />
+  <sub>Sanitized vector crop transcribed from a live Pi 1.2.0 TUI session.</sub>
+</div>
+
 ## Quick start
 
 ```bash
@@ -70,14 +76,16 @@ src/
 └── sidebar.ts         # Width-safe TUI rendering
 ```
 
-The MVP observes Pi's public tool inventory. A future native version can use a
-width-reserving layout slot and sanitized MCP runtime-status subscription if Pi exposes them.
+The MVP observes Pi's public tool inventory. Because built-in MCP connections register tools
+asynchronously, the extension samples that inventory once per second and renders only when it
+changes. A future native version can use a width-reserving layout slot and sanitized MCP
+runtime-status subscription if Pi exposes them.
 
 ## Roadmap
 
 - [x] Project and package foundation
 - [x] Responsive passive sidebar MVP
-- [ ] Runtime screenshots and visual tuning
+- [x] Runtime screenshots and visual tuning
 - [ ] Upstream proposal for a native sidebar slot
 - [ ] Upstream proposal for sanitized MCP status events
 

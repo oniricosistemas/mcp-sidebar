@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="330" viewBox="0 0 420 330" role="img" aria-labelledby="title desc">
+  <title id="title">MCP Sidebar running in Pi 1.2.0</title>
+  <desc id="desc">Sanitized crop of the live Pi TUI showing eight MCP tool namespaces and their tool counts.</desc>
+  <rect width="420" height="330" rx="16" fill="#0d1117"/>
+  <rect x="12" y="12" width="396" height="306" rx="10" fill="#161b22" stroke="#30363d"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" xml:space="preserve">
+    <text x="28" y="42" fill="#79c0ff">╭─ MCP servers ────────────────╮</text>
+    <text x="28" y="66" fill="#8b949e">│ status unknown · use /mcp    │</text>
+    <text x="28" y="90" fill="#8b949e">│                              │</text>
+    <text x="28" y="114" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> chrome-devtools   30 tools │</text>
+    <text x="28" y="138" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> codegraph           1 tool │</text>
+    <text x="28" y="162" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> context7           2 tools │</text>
+    <text x="28" y="186" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> engram            19 tools │</text>
+    <text x="28" y="210" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> firecrawl         28 tools │</text>
+    <text x="28" y="234" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> linear            59 tools │</text>
+    <text x="28" y="258" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> notion            24 tools │</text>
+    <text x="28" y="282" fill="#c9d1d9">│ <tspan fill="#3fb950">●</tspan> stitch            15 tools │</text>
+    <text x="28" y="306" fill="#79c0ff">╰──────────────────────────────╯</text>
+  </g>
+</svg>
