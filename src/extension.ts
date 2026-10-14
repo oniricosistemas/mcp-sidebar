@@ -56,7 +56,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
           overlayOptions: {
             anchor: "right-center",
             width: 32,
-            minWidth: 28,
+            minWidth: 29,
             maxHeight: "70%",
             margin: { right: 1 },
             nonCapturing: true,
