@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { visibleWidth } from "@earendil-works/pi-tui";
+
 import {
   buildMcpServers,
   shouldShowSidebar,
@@ -61,5 +63,41 @@ test("renders a width-safe panel without claiming transport connectivity", () =>
   assert.equal(lines[0], "╭─ MCP servers ──────────────╮");
   assert.ok(lines.some((line) => line.includes("context7") && line.includes("2 tools")));
   assert.ok(lines.some((line) => line.includes("status unknown")));
-  assert.ok(lines.every((line) => line.length <= 30));
+  assert.ok(lines.every((line) => visibleWidth(line) <= 30));
+});
+
+test("preserves tool counts when a namespace label is wider than its row", () => {
+  const lines = renderSidebarLines(
+    [
+      {
+        id: "long",
+        label: "a-very-long-mcp-namespace-that-cannot-fit",
+        toolCount: 12,
+        availability: "available",
+      },
+    ],
+    32,
+    (text) => text,
+  );
+
+  const serverLine = lines.find((line) => line.includes("12 tools"));
+  assert.ok(serverLine);
+  assert.ok(serverLine.includes("a-very"));
+  assert.ok(lines.every((line) => visibleWidth(line) <= 32));
+});
+
+test("bounds large inventories and keeps the overflow path visible", () => {
+  const servers = Array.from({ length: 12 }, (_, index) => ({
+    id: `server-${index + 1}`,
+    label: `server-${String(index + 1).padStart(2, "0")}`,
+    toolCount: index + 1,
+    availability: "available" as const,
+  }));
+  const lines = renderSidebarLines(servers, 32, (text) => text);
+
+  assert.ok(lines.some((line) => line.includes("Showing 8 of 12 · /mcp")));
+  assert.ok(lines.some((line) => line.includes("server-08")));
+  assert.ok(lines.every((line) => !line.includes("server-09")));
+  assert.ok(lines.some((line) => line.includes("status unknown")));
+  assert.ok(lines.length <= 13);
 });

@@ -7,6 +7,8 @@ import type { McpServerView } from "./mcp-view-model.ts";
 type Tone = "accent" | "dim" | "success";
 type Paint = (text: string, tone?: Tone) => string;
 
+const MAX_VISIBLE_SERVERS = 8;
+
 function row(content: string, width: number): string {
   const innerWidth = Math.max(0, width - 4);
   const clipped = truncateToWidth(content, innerWidth);
@@ -15,8 +17,13 @@ function row(content: string, width: number): string {
 }
 
 function columns(left: string, right: string, width: number): string {
-  const gap = Math.max(1, width - visibleWidth(left) - visibleWidth(right));
-  return truncateToWidth(`${left}${" ".repeat(gap)}${right}`, width);
+  const clippedRight = truncateToWidth(right, width);
+  const rightWidth = visibleWidth(clippedRight);
+  if (rightWidth >= width) return clippedRight;
+
+  const clippedLeft = truncateToWidth(left, Math.max(0, width - rightWidth - 1));
+  const gap = Math.max(1, width - visibleWidth(clippedLeft) - rightWidth);
+  return truncateToWidth(`${clippedLeft}${" ".repeat(gap)}${clippedRight}`, width);
 }
 
 export function renderSidebarLines(
@@ -29,20 +36,31 @@ export function renderSidebarLines(
   const top = `${title}${"─".repeat(Math.max(0, safeWidth - visibleWidth(title) - 1))}╮`;
   const bottom = `╰${"─".repeat(Math.max(0, safeWidth - 2))}╯`;
   const innerWidth = safeWidth - 4;
-  const lines = [top];
+  const lines = [
+    top,
+    row(paint("status unknown · use /mcp", "dim"), safeWidth),
+    row("", safeWidth),
+  ];
 
   if (servers.length === 0) {
-    lines.push(row(paint("No MCP tools available", "dim"), safeWidth));
+    lines.push(row(paint("No registered MCP tools yet", "dim"), safeWidth));
   } else {
-    for (const server of servers) {
+    const visibleServers = servers.slice(0, MAX_VISIBLE_SERVERS);
+    if (visibleServers.length < servers.length) {
+      lines.push(
+        row(
+          paint(`Showing ${visibleServers.length} of ${servers.length} · /mcp`, "dim"),
+          safeWidth,
+        ),
+      );
+    }
+    for (const server of visibleServers) {
       const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
       const left = `${paint("●", "success")} ${server.label}`;
       lines.push(row(columns(left, paint(toolLabel, "dim"), innerWidth), safeWidth));
     }
   }
 
-  lines.push(row("", safeWidth));
-  lines.push(row(paint("status unknown · use /mcp", "dim"), safeWidth));
   lines.push(bottom);
   return lines;
 }
