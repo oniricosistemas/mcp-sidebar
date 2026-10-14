@@ -14,7 +14,7 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 - **T1** · S2 · inline (no Writer-rule trigger; cohesive foundation) · done · commit: `2aadc51`
 - **T2** · S3 · inline (CLI enrollment and verification) · done · commit: `95fd69c`
 - **T3** · S1, S4 · inline (single cohesive behavior; test-first) · done · commit: `4794b07`
-- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · done · commits: `9dd27c1`, `491c51f`, `f8f0f90`, final publication evidence commit pending
+- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · done · commits: `9dd27c1`, `491c51f`, `f8f0f90`, `ade2a42`
 
 ## Log
 
