@@ -9,8 +9,8 @@ Branch: `feat/ux-hardening-v0.1` · Test runner: Node test runner + TypeScript t
 
 ## Tasks
 
-- **T1** · S1-S2 · inline (real TUI baseline and bounded evidence capture) · done · commit: pending
-- **T2** · S2 · inline (reproduce the real MCP inventory mismatch and determine the public-API route test-first) · pending · commit: pending
+- **T1** · S1-S2 · inline (real TUI baseline and bounded evidence capture) · done · commit: `625f329`
+- **T2** · S2 · inline (reproduce the real MCP inventory mismatch and determine the public-API route test-first) · done · commit: pending
 - **T3** · S2 · inline (test-first rendering edge hardening) · pending · commit: pending
 - **T4** · S2 · inline (test-first repeated-session lifecycle hardening) · pending · commit: pending
 - **T5** · S2 · inline (final interactive proof, screenshots, and documentation) · pending · commit: pending
@@ -22,3 +22,6 @@ Branch: `feat/ux-hardening-v0.1` · Test runner: Node test runner + TypeScript t
 - **L3 — Audit:** No P0 blocker remains. Explicit gaps are interactive TUI proof and runtime screenshots. Observable but unconfirmed edge cases are long labels losing counts, many-server height overflow, and repeated `session_start` after a hidden overlay. No repository CI exists, but CI/release work is outside this selected milestone.
 - **L4 — T1 interactive baseline:** Launched the extension in a real 120×40 tmux-backed Pi TUI. On Pi 1.2.0, the overlay rendered, `/mcp-sidebar` hide/show worked, normal editor input retained focus, resizing to 99 columns hid the overlay, resizing to 100 restored it, and Pi's built-in `/mcp` screen opened without being replaced. A host-local missing `Gentleman-Sexy` theme warning fell back to the system theme and is unrelated to this repository.
 - **L5 — Confirmed inventory mismatch:** In the same Pi 1.2.0 session, the sidebar rendered `No MCP tools available` while built-in `/mcp` displayed eight connected deferred servers with tool counts. This is now the first hardening target. An initial smoke on global Pi 0.81.1 was discarded for authoritative built-in `/mcp` evidence because the project and gentle-shell use Pi 1.2.0.
+- **L6 — Public API boundary:** Pi 1.2.0 exposes `getAllTools()` but no public snapshot/subscription for the authoritative closure-local inventory used by built-in `/mcp`; `getMcpServers()` covers extension registrations only. Built-in MCP registration happens asynchronously after `session_start`, so the sidebar now polls the public tool inventory once per second, updates only when its fingerprint changes, and retains `status unknown · use /mcp` rather than claiming connection state.
+- **L7 — T2 RED/GREEN:** RED observed two failures: the prior `0 MCP servers`/`No MCP tools available` wording and no idle refresh timer. GREEN: focused tests passed 3/3; the full suite passed 7/7; typecheck and diff checks passed. A fresh Pi 1.2.0 TUI changed from the initial empty snapshot to visible `codegraph` and `notion` namespaces without an agent turn, while built-in `/mcp` remained authoritative for all connected servers.
+- **L8 — T2 independent verification:** Timer/concurrency verification passed: one timer per overlay, deferred discovery, unchanged-render suppression, truthful wording, shutdown/custom-completion cleanup, and existing toggle/`agent_end` compatibility. The verifier correctly left full S2 incomplete because T3-T5 remain pending.

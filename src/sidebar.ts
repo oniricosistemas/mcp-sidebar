@@ -32,7 +32,7 @@ export function renderSidebarLines(
   const lines = [top];
 
   if (servers.length === 0) {
-    lines.push(row(paint("No MCP tools available", "dim"), safeWidth));
+    lines.push(row(paint("No registered MCP tools yet", "dim"), safeWidth));
   } else {
     for (const server of servers) {
       const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;

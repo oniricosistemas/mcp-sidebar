@@ -10,20 +10,39 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let finishOverlay: (() => void) | undefined;
   let visible = true;
   let activeContext: ExtensionContext | undefined;
+  let refreshTimer: ReturnType<typeof setInterval> | undefined;
+  let inventoryFingerprint: string | undefined;
 
   const refresh = (): void => {
     const servers = buildMcpServers(pi.getAllTools());
+    const nextFingerprint = JSON.stringify(servers);
+    if (nextFingerprint === inventoryFingerprint) return;
+
+    inventoryFingerprint = nextFingerprint;
     panel?.setServers(servers);
+    const namespaceLabel = servers.length === 1 ? "namespace" : "namespaces";
     activeContext?.ui.setStatus(
       "mcp-sidebar",
-      `${servers.length} MCP ${servers.length === 1 ? "server" : "servers"}`,
+      `${servers.length} MCP ${namespaceLabel}${servers.length === 0 ? " visible" : ""}`,
     );
+  };
+
+  const startRefreshTimer = (): void => {
+    if (refreshTimer) return;
+    refreshTimer = setInterval(refresh, 1000);
+  };
+
+  const stopRefreshTimer = (): void => {
+    if (!refreshTimer) return;
+    clearInterval(refreshTimer);
+    refreshTimer = undefined;
   };
 
   const mount = (ctx: ExtensionContext): void => {
     if (ctx.mode !== "tui" || panel) return;
 
     activeContext = ctx;
+    inventoryFingerprint = undefined;
     void ctx.ui
       .custom<void>(
         (tui, theme, _keybindings, done) => {
@@ -49,10 +68,12 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
         },
       )
       .finally(() => {
+        stopRefreshTimer();
         panel = undefined;
         handle = undefined;
         finishOverlay = undefined;
       });
+    startRefreshTimer();
   };
 
   pi.registerCommand("mcp-sidebar", {
@@ -80,8 +101,10 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   });
 
   pi.on("session_shutdown", () => {
+    stopRefreshTimer();
     activeContext?.ui.setStatus("mcp-sidebar", undefined);
     finishOverlay?.();
     activeContext = undefined;
+    inventoryFingerprint = undefined;
   });
 }

@@ -70,7 +70,7 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   assert.equal(options.overlayOptions?.anchor, "right-center");
   assert.equal(options.overlayOptions?.visible?.(99, 30), false);
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
-  assert.equal(statuses.at(-1)?.[1], "1 MCP server");
+  assert.equal(statuses.at(-1)?.[1], "1 MCP namespace");
   assert.ok(component?.render(32).every((line) => visibleWidth(line) <= 32));
 
   await commands.get("mcp-sidebar")?.handler("", context);
@@ -81,8 +81,8 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
 
   tools = [];
   events.get("agent_end")?.();
-  assert.equal(statuses.at(-1)?.[1], "0 MCP servers");
-  assert.ok(component?.render(32).some((line) => line.includes("No MCP tools available")));
+  assert.equal(statuses.at(-1)?.[1], "0 MCP namespaces visible");
+  assert.ok(component?.render(32).some((line) => line.includes("No registered MCP tools yet")));
 
   events.get("session_shutdown")?.();
   await Promise.resolve();
@@ -92,6 +92,89 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   await commands.get("mcp-sidebar")?.handler("", { ...context, mode: "print" });
   assert.deepEqual(notices.at(-1), ["MCP Sidebar requires interactive TUI mode.", "warning"]);
   assert.ok(renders >= 2);
+});
+
+test("refreshes deferred MCP inventory while idle and stops polling on shutdown", () => {
+  const events = new Map<string, (...args: any[]) => void>();
+  const statuses: [string, string | undefined][] = [];
+  let component: Component | undefined;
+  let renders = 0;
+  let tools: { name: string; namespace: { name: string }; exposure: string }[] = [];
+  let intervalHandler: (() => void) | undefined;
+  let intervalMs: number | undefined;
+  const intervalToken = { id: "mcp-refresh" };
+  let clearedToken: unknown;
+
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
+  globalThis.setInterval = ((handler: () => void, milliseconds: number) => {
+    intervalHandler = handler;
+    intervalMs = milliseconds;
+    return intervalToken;
+  }) as unknown as typeof setInterval;
+  globalThis.clearInterval = ((token: unknown) => {
+    clearedToken = token;
+  }) as typeof clearInterval;
+
+  try {
+    extension({
+      registerCommand: () => {},
+      on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+      getAllTools: () => tools,
+    } as any);
+
+    const context = {
+      mode: "tui",
+      ui: {
+        setStatus: (key: string, value: string | undefined) => statuses.push([key, value]),
+        notify: () => {},
+        custom: (factory: (...args: any[]) => Component) => {
+          component = factory(
+            { requestRender: () => renders++ },
+            { fg: (_tone: string, text: string) => text },
+            {},
+            () => {},
+          );
+          return new Promise<void>(() => {});
+        },
+      },
+    };
+
+    events.get("session_start")?.({}, context);
+    assert.equal(intervalMs, 1000);
+    assert.ok(intervalHandler);
+    assert.deepEqual(statuses.at(-1), ["mcp-sidebar", "0 MCP namespaces visible"]);
+    assert.equal(renders, 1);
+    const initialStatusWrites = statuses.length;
+
+    intervalHandler?.();
+    assert.equal(renders, 1);
+    assert.equal(statuses.length, initialStatusWrites);
+
+    tools = [
+      {
+        name: "mcp__context7__query_docs",
+        namespace: { name: "mcp__context7" },
+        exposure: "deferred",
+      },
+    ];
+    intervalHandler?.();
+
+    assert.deepEqual(statuses.at(-1), ["mcp-sidebar", "1 MCP namespace"]);
+    assert.ok(component?.render(32).some((line) => line.includes("context7")));
+    assert.equal(renders, 2);
+    assert.equal(statuses.length, initialStatusWrites + 1);
+
+    intervalHandler?.();
+    assert.equal(renders, 2);
+    assert.equal(statuses.length, initialStatusWrites + 1);
+
+    events.get("session_shutdown")?.();
+    assert.equal(clearedToken, intervalToken);
+  } finally {
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
+  }
 });
 
 test("deduplicates tools and rejects malformed or hidden MCP inventory", () => {
