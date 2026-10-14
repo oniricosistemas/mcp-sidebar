@@ -1,6 +1,6 @@
 # MCP Sidebar MVP
 Objective: Create and publish a usable Pi extension that surfaces MCP availability in a right-side TUI panel.
-Branch: `feat/mcp-sidebar-mvp` (planned) · Delivery: `ask-on-risk` · Test runner: Node test runner + TypeScript typecheck · Forecast: ~360 authored lines (binary logo excluded).
+Branch: `feat/mcp-sidebar-mvp` · Delivery: `ask-on-risk` · Test runner: Node test runner + TypeScript typecheck · Forecast: ~360 authored lines (binary logo excluded).
 
 ## Specs
 
@@ -12,8 +12,8 @@ Branch: `feat/mcp-sidebar-mvp` (planned) · Delivery: `ask-on-risk` · Test runn
 ## Tasks
 
 - **T1** · S2 · inline (no Writer-rule trigger; cohesive foundation) · done · commit: `6c82d2c`
-- **T2** · S3 · inline (CLI enrollment and verification) · in progress · commit: —
-- **T3** · S1, S4 · inline (single cohesive behavior; test-first) · pending · commit: —
+- **T2** · S3 · inline (CLI enrollment and verification) · done · commit: `b4a6283`
+- **T3** · S1, S4 · inline (single cohesive behavior; test-first) · in progress · commit: —
 - **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · pending · commit: —
 
 ## Log
@@ -27,4 +27,5 @@ Branch: `feat/mcp-sidebar-mvp` (planned) · Delivery: `ask-on-risk` · Test runn
 - **L4 — Research:** Official upstream logo is `Gentleman-Programming/gentle-shell:assets/gentle-logo-only.png` (1254×1254 PNG). Upstream is MIT licensed; preserve its notice and avoid implying endorsement because the README uses `gentle-shell™`.
 - **L5 — Engram readiness:** Installed Engram is 3.4.0. Cloud is configured at `https://engram.sastrevalls`, authentication is ready, and explicit project enrollment remains pending.
 - **L6 — T1 evidence:** Created public repository `https://github.com/oniricosistemas/mcp-sidebar`, initialized `main`, switched to `feat/mcp-sidebar-mvp`, added the Pi package manifest, scannable README, MIT license, official 1254×1254 logo, and upstream notice. Structural checks and `git diff --check` passed. Work-unit commit: `6c82d2c`.
-- **L7 — Next:** Enroll and verify the project in Engram local and Cloud.
+- **L7 — T2 evidence:** Initialized `.engram/config.json` with explicit identity `mcp-sidebar`, enrolled it against `https://engram.sastrevalls`, exported local memories, imported the one pending remote chunk, and observed `Local chunks: 2`, `Remote chunks: 2`, `Pending import: 0`. Work-unit commit: `b4a6283`.
+- **L8 — Next:** Add RED tests for MCP namespace discovery and responsive rendering, then implement the extension MVP.

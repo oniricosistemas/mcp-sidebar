@@ -76,7 +76,7 @@ width-reserving layout slot and sanitized MCP runtime-status subscription if Pi 
 ## Roadmap
 
 - [x] Project and package foundation
-- [ ] Responsive passive sidebar MVP
+- [x] Responsive passive sidebar MVP
 - [ ] Runtime screenshots and visual tuning
 - [ ] Upstream proposal for a native sidebar slot
 - [ ] Upstream proposal for sanitized MCP status events
