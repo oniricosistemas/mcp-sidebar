@@ -14,7 +14,7 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 - **T1** · S2 · inline (no Writer-rule trigger; cohesive foundation) · done · commit: `2aadc51`
 - **T2** · S3 · inline (CLI enrollment and verification) · done · commit: `95fd69c`
 - **T3** · S1, S4 · inline (single cohesive behavior; test-first) · done · commit: `4794b07`
-- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · in progress · commits: `9dd27c1`, `491c51f`, `f8f0f90` (final evidence and remote publication pending)
+- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · done · commits: `9dd27c1`, `491c51f`, `f8f0f90`, final publication evidence commit pending
 
 ## Log
 
@@ -35,4 +35,7 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 - **L12 — Native assessment correction:** Native high-risk assessment identified ordinary package files as executable. Commit `491c51f` normalized all tracked package files to mode `100644`; reassessment retained high risk only because mode changes are part of the candidate.
 - **L13 — Independent verification:** First pass found no product defect but required independent S2/S3 evidence and actual Pi-host loading. Correction commit `f8f0f90` added lifecycle/inventory tests and corrected README behavior. Focused tests passed 2/2, full tests passed 6/6, typecheck and diff checks passed.
 - **L14 — Blocker recheck:** GitHub independently reported the repository PUBLIC on `main`; upstream/local logo hashes matched; Engram reported enrolled with `Local chunks: 12`, `Remote chunks: 12`, `Pending import: 0`; Pi's documented `DefaultResourceLoader` loaded `src/extension.ts` with command `mcp-sidebar`, no errors, and no warnings. S2, S3, and S4 all passed. Interactive visual smoke testing remains unperformed and is not claimed.
-- **L15 — Next:** Commit final evidence, complete the RDD high-risk review path, then request the separate remote authorization required for tracking issue, branch pushes, and chained draft PR publication.
+- **L15 — Native review:** High-risk four-lens review lineage `review-c1b3f6ffdd082e93` approved the committed candidate and exact acknowledgement burned the authority. Two informational advisories remain non-blocking: duplicated visibility policy and session-start state handling; neither opened a correction.
+- **L16 — Publication:** User explicitly authorized full chain publication with GitHub session `oniricosistemas`. Confirmed issue `#1` with `type:feature` and `status:approved`; pushed all three branches; opened draft tracker PR `#2` (`main` ← `feat/mcp-sidebar`), foundation PR `#3` (`feat/mcp-sidebar` ← `chore/mcp-sidebar-foundation`), and MVP PR `#4` (`chore/mcp-sidebar-foundation` ← `feat/mcp-sidebar-mvp`). No merge was requested or performed.
+- **L17 — Remote readback:** All three PRs are OPEN, CLEAN, carry exactly one `type:feature` label, and CodeRabbit reported SUCCESS. PR `#2` remains draft/no-merge. GitHub reports 257 changed lines for PR `#3` and 1,555 for PR `#4`; PR `#4` documents that 424 are authored lines excluding the generated lockfile and explains the bounded cohesive overage.
+- **L18 — Next:** Review and integrate child PR `#3`, then child PR `#4`, and only then make tracker PR `#2` ready. Interactive visual smoke testing remains the only skipped check and is explicitly not claimed.
