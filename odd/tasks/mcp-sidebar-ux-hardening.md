@@ -13,7 +13,7 @@ Branch: `feat/ux-hardening-v0.1` · Test runner: Node test runner + TypeScript t
 - **T2** · S2 · inline (reproduce the real MCP inventory mismatch and determine the public-API route test-first) · done · commit: `eab0548`
 - **T3** · S2 · inline (test-first rendering edge hardening) · done · commit: `62d3980`
 - **T4** · S2 · inline (test-first repeated-session lifecycle hardening) · done · commit: `36605ab`
-- **T5** · S2 · inline (final interactive proof, screenshots, and documentation) · done · commit: pending
+- **T5** · S2 · inline (final interactive proof, screenshots, and documentation) · done · commit: `34ba295`
 
 ## Log
 
