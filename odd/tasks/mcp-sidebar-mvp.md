@@ -11,10 +11,10 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 
 ## Tasks
 
-- **T1** · S2 · inline (no Writer-rule trigger; cohesive foundation) · done · commit: `6c82d2c`
-- **T2** · S3 · inline (CLI enrollment and verification) · done · commit: `b4a6283`
-- **T3** · S1, S4 · inline (single cohesive behavior; test-first) · done · commit: `affc231`
-- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · in progress · commit: —
+- **T1** · S2 · inline (no Writer-rule trigger; cohesive foundation) · done · commit: `2aadc51`
+- **T2** · S3 · inline (CLI enrollment and verification) · done · commit: `95fd69c`
+- **T3** · S1, S4 · inline (single cohesive behavior; test-first) · done · commit: `4794b07`
+- **T4** · S1-S4 · inline (integration verification and authorized GitHub publication) · in progress · commit: `9dd27c1` (delivery plan; final evidence pending)
 
 ## Log
 
@@ -26,9 +26,10 @@ Branch: `feat/mcp-sidebar-mvp` · Delivery: `auto-chain` · Chain: `feature-bran
 - **L3 — Repository decision:** User selected `oniricosistemas/mcp-sidebar` with public visibility. The repository name is currently available; GitHub CLI is authenticated as `oniricosistemas`.
 - **L4 — Research:** Official upstream logo is `Gentleman-Programming/gentle-shell:assets/gentle-logo-only.png` (1254×1254 PNG). Upstream is MIT licensed; preserve its notice and avoid implying endorsement because the README uses `gentle-shell™`.
 - **L5 — Engram readiness:** Installed Engram is 3.4.0. Cloud is configured at `https://engram.sastrevalls`, authentication is ready, and explicit project enrollment remains pending.
-- **L6 — T1 evidence:** Created public repository `https://github.com/oniricosistemas/mcp-sidebar`, initialized `main`, switched to `feat/mcp-sidebar-mvp`, added the Pi package manifest, scannable README, MIT license, official 1254×1254 logo, and upstream notice. Structural checks and `git diff --check` passed. Work-unit commit: `6c82d2c`.
-- **L7 — T2 evidence:** Initialized `.engram/config.json` with explicit identity `mcp-sidebar`, enrolled it against `https://engram.sastrevalls`, exported local memories, imported the one pending remote chunk, and observed `Local chunks: 2`, `Remote chunks: 2`, `Pending import: 0`. Work-unit commit: `b4a6283`.
-- **L8 — T3 evidence:** RED observed with `ERR_MODULE_NOT_FOUND` before the MVP modules existed. GREEN: focused Node tests and the full test script both passed 4/4; TypeScript typecheck passed after enabling `.ts` imports; `pnpm pack --dry-run` included the intended extension files. The first install downloaded all 120 packages but exited 1 because pnpm refused two transitive build scripts; `pnpm-workspace.yaml` explicitly denies both scripts, and no dependency script was executed. Work-unit commit: `affc231`.
+- **L6 — T1 evidence:** Created public repository `https://github.com/oniricosistemas/mcp-sidebar`, initialized `main`, switched to `feat/mcp-sidebar-mvp`, added the Pi package manifest, scannable README, MIT license, official 1254×1254 logo, and upstream notice. Structural checks and `git diff --check` passed. Rebased work-unit commit: `2aadc51`.
+- **L7 — T2 evidence:** Initialized `.engram/config.json` with explicit identity `mcp-sidebar`, enrolled it against `https://engram.sastrevalls`, exported local memories, imported the one pending remote chunk, and observed `Local chunks: 2`, `Remote chunks: 2`, `Pending import: 0`. Rebased work-unit commit: `95fd69c`.
+- **L8 — T3 evidence:** RED observed with `ERR_MODULE_NOT_FOUND` before the MVP modules existed. GREEN: focused Node tests and the full test script both passed 4/4; TypeScript typecheck passed after enabling `.ts` imports; `pnpm pack --dry-run` included the intended extension files. The first install downloaded all 120 packages but exited 1 because pnpm refused two transitive build scripts; `pnpm-workspace.yaml` explicitly denies both scripts, and no dependency script was executed. Rebased work-unit commit: `4794b07`.
 - **L9 — Delivery budget:** Running authored change count is 551 lines excluding the generated lockfile and binary logo, so `ask-on-risk` requires a delivery-strategy selection before the next commit.
 - **L10 — Delivery decision:** User selected `feature-branch-chain`; cache `delivery_strategy=auto-chain` and `chain_strategy=feature-branch-chain`. Planned slices: tracker `feat/mcp-sidebar` → foundation `chore/mcp-sidebar-foundation` → MVP `feat/mcp-sidebar-mvp`.
-- **L11 — Next:** Prepare the local chain, run final integration verification, update durable evidence, and request the separate remote authorization required for issue/branch/PR publication.
+- **L11 — Chain prepared:** Verified default branch `main`; created tracker `feat/mcp-sidebar` at `9d051ac`, foundation child `chore/mcp-sidebar-foundation` through `95fd69c`, and MVP child `feat/mcp-sidebar-mvp` through `9dd27c1`. Rebase changed work-unit identities and the task records now use the rebased commits.
+- **L12 — Next:** Run final integration and independent high-risk verification, update durable evidence, and request the separate remote authorization required for issue/branch/PR publication.
