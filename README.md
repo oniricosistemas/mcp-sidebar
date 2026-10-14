@@ -21,21 +21,21 @@
 pi install git:github.com/oniricosistemas/mcp-sidebar
 ```
 
-Restart Pi or gentle-shell, then run:
+Restart Pi or gentle-shell. The panel appears automatically in interactive TUI sessions.
+Toggle it at any time with:
 
 ```text
 /mcp-sidebar
 ```
 
-Run the same command again to hide the panel. Use Pi's built-in `/mcp` screen for
-authoritative connection details, authentication, reconnection, and configuration.
+Use Pi's built-in `/mcp` screen for authoritative connection details,
+authentication, reconnection, and configuration.
 
 ## What it shows
 
 | Signal | Meaning |
 |---|---|
 | `available` | Pi currently exposes one or more tools from this MCP namespace. |
-| `no tools` | The namespace is known but no callable tools are currently exposed. |
 | `status unknown` | Pi's public extension API cannot prove the transport is connected. |
 
 The extension deliberately avoids claiming a server is connected when it can only see
@@ -76,7 +76,7 @@ width-reserving layout slot and sanitized MCP runtime-status subscription if Pi 
 ## Roadmap
 
 - [x] Project and package foundation
-- [ ] Responsive passive sidebar MVP
+- [x] Responsive passive sidebar MVP
 - [ ] Runtime screenshots and visual tuning
 - [ ] Upstream proposal for a native sidebar slot
 - [ ] Upstream proposal for sanitized MCP status events
