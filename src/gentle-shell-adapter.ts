@@ -37,6 +37,7 @@ type RailStack = {
 type CompatibleTerminal = Record<symbol, unknown>;
 
 export interface GentleShellRailAttachment {
+  isMounted(): boolean;
   isActive(): boolean;
   setVisible(visible: boolean): void;
   invalidate(): void;
@@ -188,9 +189,13 @@ export function attachGentleShellRailPanel(
     tui.requestRender();
   };
 
+  const isMounted = () =>
+    !disposed && host.parts.get("footer") === stack!.wrapper;
+
   return {
+    isMounted,
     isActive(): boolean {
-      return !disposed && host.parts.get("footer") === stack!.wrapper && railOwnsHost(host);
+      return isMounted() && railOwnsHost(host);
     },
     setVisible(visible: boolean): void {
       if (disposed || participant.visible === visible) return;
