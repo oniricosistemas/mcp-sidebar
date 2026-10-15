@@ -208,6 +208,20 @@
       "title": "1.670 líneas, 8 PRs y una revisión amigable",
       "purpose": "Exponer el proceso de entrega: división por presupuesto de revisión y cadena de PRs con trazabilidad.",
       "layout": "bars",
+      "chart": {
+        "label": "Líneas cambiadas por slice · presupuesto de revisión: 400",
+        "max": 400,
+        "bars": [
+          { "label": "PR #7 primitivas", "value": 382 },
+          { "label": "PR #8 detalle", "value": 176 },
+          { "label": "PR #9 interacciones", "value": 258 },
+          { "label": "PR #10 alineación", "value": 10 },
+          { "label": "PR #11 rail core", "value": 390 },
+          { "label": "PR #12 integración", "value": 176 },
+          { "label": "PR #13 collapse", "value": 273 },
+          { "label": "PR #14 visibilidad", "value": 37 }
+        ]
+      },
       "points": [
         "El diff completo medía 1.670 líneas — por encima del presupuesto sano de revisión.",
         "La respuesta: una cadena de PRs con tracker, ocho slices coherentes y máx. 390 líneas por slice.",
