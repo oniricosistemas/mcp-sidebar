@@ -113,6 +113,10 @@ only when the integration is absent, incompatible, disposed, or replaced by a ne
 
 ## Roadmap
 
+> 📽️ **Presentación social:** el deck interactivo, el PDF, los carruseles por plataforma y el copy
+> para LinkedIn/X/Discord están en [`presentation/`](presentation/README.md). Todo local, listo para
+> publicar con autorización explícita.
+
 - [x] Project and package foundation
 - [x] Responsive passive sidebar MVP
 - [x] Runtime screenshots and visual tuning
