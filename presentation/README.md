@@ -8,7 +8,7 @@ con qué restricciones, cómo se verificó y cómo se entregó. Pensada para Lin
 ## Quick path
 
 1. Ver el deck: abrir `index.html` en un navegador (o `python3 -m http.server` y navegar).
-2. Regenerar tras editar contenido: `node presentation/tools/build-deck.mjs`.
+2. Regenerar tras editar contenido: `node presentation/tools/optimize-captures.mjs && node presentation/tools/build-deck.mjs`.
 3. Exportar assets sociales: `node presentation/tools/export-social.mjs`.
 4. Validar exports: `node presentation/tools/export-social.mjs --check` (incluido en `pnpm test`).
 
@@ -51,10 +51,16 @@ El deck acepta canvases deterministas para redes sociales:
 ## Reproducir los exports
 
 ```bash
-node presentation/tools/build-deck.mjs     # regenera index.html desde content.json
-node presentation/tools/export-social.mjs  # renderiza PNGs + cover + PDF con Chrome headless
+node presentation/tools/optimize-captures.mjs  # capturas PNG → WebP optimizadas (1200px, q0.85)
+node presentation/tools/build-deck.mjs         # regenera index.html desde content.json
+node presentation/tools/export-social.mjs      # renderiza PNGs + cover + PDF con Chrome headless
 node presentation/tools/export-social.mjs --check
 ```
+
+> **Límite de Gist:** la API de Gists trunca archivos por encima de ~1 MB y Gist Preview
+> escribe ese contenido truncado — el deck pierde su `<script>` de navegación y no se puede
+> avanzar ni retroceder. `index.html` debe quedar por debajo de **800 KB** (presupuesto anclado
+> por test); el embed de capturas usa las variantes WebP de `assets/presentation/optimized/`.
 
 Salida en `exports/`:
 
@@ -110,5 +116,13 @@ resultados de tests). Si una captura muestra estado de sesión, es literal a la 
 
 ## Next step
 
-Publicar solo con autorización explícita: Gist Preview (`gistpreview.github.io`) o GitHub Pages.
-El copy está en `copy/` listo para pegar, con el link al repositorio incluido.
+Publicado en Gist Preview (autorización explícita del usuario):
+
+```text
+https://gistpreview.github.io/?ff58cd54868498228629db0030c0c960/index.html#1
+```
+
+Gist: `oniricosistemas/ff58cd54868498228629db0030c0c960`. Para actualizar: `gh api -X PATCH
+ gists/<id> --input payload.json` con `{"files":{"index.html":{"content":"…"}}}` y volver a
+ verificar `truncated: false` + render real. El copy está en `copy/` listo para pegar, con el link
+ al repositorio incluido. Los posts en redes siguen pendientes de autorización separada.

@@ -37,8 +37,20 @@ function inline(text) {
 }
 
 function embedAsset(relativePath) {
-  const bytes = readFileSync(join(root, relativePath));
-  return `data:image/png;base64,${bytes.toString("base64")}`;
+  // Prefer the optimized WebP variant so the single-file deck stays below the
+  // GitHub Gist API content limit (~1MB, above which Gist Preview truncates and
+  // the navigation script is lost). Falls back to the canonical PNG.
+  const optimizedPath = join(
+    root,
+    relativePath.replace(/^assets\/presentation\//, "assets/presentation/optimized/").replace(/\.png$/, ".webp"),
+  );
+  try {
+    const bytes = readFileSync(optimizedPath);
+    return `data:image/webp;base64,${bytes.toString("base64")}`;
+  } catch {
+    const bytes = readFileSync(join(root, relativePath));
+    return `data:image/png;base64,${bytes.toString("base64")}`;
+  }
 }
 
 const assetCache = new Map();

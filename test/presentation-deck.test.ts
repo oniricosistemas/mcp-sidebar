@@ -18,8 +18,19 @@ test("generates one self-contained Spanish deck with embedded captures", () => {
   assert.match(deck, /MCP Sidebar/);
   assert.doesNotMatch(deck, /<script\s+src=/, "deck must inline its JavaScript");
   assert.doesNotMatch(deck, /<link\s+rel="stylesheet"/, "deck must inline its styles");
-  const images = deck.match(/data:image\/png;base64,/g) ?? [];
-  assert.ok(images.length >= 4, `expected 4 embedded PNG captures, found ${images.length}`);
+  const images = deck.match(/data:image\/(?:png|webp);base64,/g) ?? [];
+  assert.ok(images.length >= 4, `expected 4 embedded captures, found ${images.length}`);
+});
+
+test("keeps the deck under the Gist API truncation budget", () => {
+  assert.ok(deck, "presentation/index.html must exist");
+  const bytes = Buffer.byteLength(deck, "utf8");
+  // GitHub's Gist API truncates file content above ~1MB and Gist Preview writes
+  // that content verbatim: a truncated deck loses its navigation <script>.
+  assert.ok(
+    bytes < 800_000,
+    `presentation/index.html must stay under 800 KB so Gist Preview receives it complete (got ${bytes} bytes)`,
+  );
 });
 
 test("renders every story slide in order with its recreated capture", () => {
