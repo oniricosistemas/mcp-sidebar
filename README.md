@@ -34,6 +34,17 @@ Toggle it at any time with:
 /mcp-sidebar
 ```
 
+In fullscreen mode, click a namespace row to open its tool names and descriptions.
+The keyboard path works in every interactive TUI mode:
+
+```text
+/mcp-tools
+/mcp-tools context7
+```
+
+Use arrow keys or Page Up/Page Down to scroll tool details and Escape to close them.
+The sidebar and details dialog use semantic colors from the currently selected Pi theme.
+
 Use Pi's built-in `/mcp` screen for authoritative connection details,
 authentication, reconnection, and configuration.
 
@@ -52,7 +63,8 @@ registered tools. It also leaves Pi's built-in `/mcp` command untouched.
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
 - **Non-blocking:** the overlay does not capture keyboard focus.
 - **Responsive:** narrow terminals fall back without covering the editor.
-- **Theme-aware:** colors follow the active Pi theme.
+- **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
+- **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
 - **Honest:** availability is reported separately from connection health.
 
 ## Local development

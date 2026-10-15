@@ -66,7 +66,7 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   };
 
   extension(pi as any);
-  assert.deepEqual([...commands.keys()], ["mcp-sidebar"]);
+  assert.deepEqual([...commands.keys()], ["mcp-sidebar", "mcp-tools"]);
 
   events.get("session_start")?.({}, context);
   assert.equal(options.overlay, true);
@@ -264,4 +264,139 @@ test("deduplicates tools and rejects malformed or hidden MCP inventory", () => {
     [{ id: "x", label: "x", toolCount: 1, availability: "available" }],
   );
   assert.deepEqual(buildMcpServers([]), []);
+});
+
+test("opens one namespace detail modal from command or click and restores the passive sidebar", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const notices: [string, string][] = [];
+  const selections: { title: string; options: string[] }[] = [];
+  const hidden: boolean[] = [];
+  const finished: string[] = [];
+  const components: Component[] = [];
+  const customOptions: any[] = [];
+  const detailDone: (() => void)[] = [];
+  let selected: string | undefined;
+  let sidebarHidden = false;
+
+  const tools = [
+    {
+      name: "mcp__demo__read_item",
+      description: "Read one item from the demo server.",
+      namespace: { name: "mcp__demo" },
+      exposure: "deferred",
+    },
+    {
+      name: "mcp__other__search",
+      description: "Search another server.",
+      namespace: { name: "mcp__other" },
+      exposure: "codemode",
+    },
+  ];
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: { rows: 24, columns: 120 },
+    requestRender: () => {},
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: (message: string, level: string) => notices.push([message, level]),
+      select: async (title: string, options: string[]) => {
+        selections.push({ title, options });
+        return selected;
+      },
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        const callIndex = components.length;
+        customOptions.push(options);
+        if (callIndex === 0) {
+          options.onHandle?.({
+            setHidden: (value: boolean) => {
+              sidebarHidden = value;
+              hidden.push(value);
+            },
+            isHidden: () => sidebarHidden,
+          });
+        }
+        return new Promise<void>((resolve) => {
+          const done = () => {
+            finished.push(callIndex === 0 ? "sidebar" : "details");
+            resolve();
+          };
+          const component = factory(tui, theme, {}, done);
+          components.push(component);
+          if (callIndex > 0) detailDone.push(done);
+        });
+      },
+    },
+  };
+
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => tools,
+  } as any);
+  events.get("session_start")?.({}, context);
+
+  await commands.get("mcp-tools")?.handler("missing", context);
+  assert.deepEqual(notices.at(-1), ["Unknown MCP namespace: missing", "warning"]);
+  assert.equal(components.length, 1);
+
+  selected = undefined;
+  await commands.get("mcp-tools")?.handler("", context);
+  assert.deepEqual(selections.at(-1), {
+    title: "MCP namespace",
+    options: ["demo", "other"],
+  });
+  assert.equal(components.length, 1);
+
+  selected = "demo";
+  const commandOpen = commands.get("mcp-tools")!.handler("", context);
+  await Promise.resolve();
+  assert.equal(components.length, 2);
+  assert.equal(customOptions[1]?.overlayOptions?.nonCapturing, undefined);
+  assert.equal(customOptions[1]?.overlayOptions?.anchor, "center");
+  assert.deepEqual(hidden, [true]);
+  assert.ok(components[1]?.render(48).some((line) => line.includes("read_item")));
+  assert.ok(components[1]?.render(48).some((line) => line.includes("Read one item")));
+
+  await commands.get("mcp-tools")?.handler("other", context);
+  assert.equal(components.length, 2);
+  assert.deepEqual(notices.at(-1), ["MCP tool details are already open.", "info"]);
+
+  components[1]?.handleInput?.("\u001b");
+  await commandOpen;
+  assert.deepEqual(hidden, [true, false]);
+
+  const sidebarLines = components[0]!.render(32);
+  const demoRow = sidebarLines.findIndex((line) => line.includes("demo"));
+  components[0]?.handleMouse?.({
+    type: "click",
+    button: "left",
+    x: 4,
+    y: demoRow,
+    screenX: 4,
+    screenY: demoRow,
+    width: 32,
+    height: sidebarLines.length,
+    shift: false,
+    alt: false,
+    ctrl: false,
+  });
+  await Promise.resolve();
+  assert.equal(components.length, 3);
+  assert.equal(sidebarHidden, true);
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.deepEqual(finished.slice(-2), ["details", "sidebar"]);
 });
