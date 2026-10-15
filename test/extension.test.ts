@@ -11,8 +11,14 @@ interface CommandRegistration {
   handler: (args: string, context: unknown) => Promise<void>;
 }
 
+interface ShortcutRegistration {
+  description: string;
+  handler: (context: unknown) => void | Promise<void>;
+}
+
 test("registers, toggles, refreshes, and cleans up through Pi's public extension API", async () => {
   const commands = new Map<string, CommandRegistration>();
+  const shortcuts = new Map<string, ShortcutRegistration>();
   const events = new Map<string, (...args: any[]) => void>();
   const statuses: [string, string | undefined][] = [];
   const notices: [string, string][] = [];
@@ -31,10 +37,15 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
 
   const pi = {
     registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: (key: string, shortcut: ShortcutRegistration) => shortcuts.set(key, shortcut),
     on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
     getAllTools: () => tools,
   };
-  const theme = { fg: (_tone: string, text: string) => `\x1b[32m${text}\x1b[0m` };
+  const theme = {
+    fg: (_tone: string, text: string) => `\x1b[32m${text}\x1b[0m`,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
   const context = {
     mode: "tui",
     ui: {
@@ -62,23 +73,50 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   };
 
   extension(pi as any);
-  assert.deepEqual([...commands.keys()], ["mcp-sidebar"]);
+  assert.deepEqual([...commands.keys()], ["mcp-sidebar", "mcp-sidebar-collapse", "mcp-tools"]);
+  assert.deepEqual([...shortcuts.keys()], ["ctrl+shift+m"]);
+  assert.equal(shortcuts.get("ctrl+shift+m")?.description, "Collapse or expand the MCP sidebar");
 
   events.get("session_start")?.({}, context);
   assert.equal(options.overlay, true);
   assert.equal(options.overlayOptions?.nonCapturing, true);
-  assert.equal(options.overlayOptions?.anchor, "right-center");
+  assert.equal(options.overlayOptions?.anchor, "bottom-right");
+  assert.equal(options.overlayOptions?.width, 48);
   assert.equal(options.overlayOptions?.minWidth, 29);
+  assert.deepEqual(options.overlayOptions?.margin, { right: 2, bottom: 1 });
   assert.equal(options.overlayOptions?.visible?.(99, 30), false);
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
   assert.equal(statuses.at(-1)?.[1], "1 MCP namespace");
   assert.ok(component?.render(32).every((line) => visibleWidth(line) <= 32));
 
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
+  assert.equal(component?.render(32).length, 1);
+  assert.ok(component?.render(32)[0]?.includes("▸ Expand"));
+  await shortcuts.get("ctrl+shift+m")?.handler(context);
+  assert.ok((component?.render(32).length ?? 0) > 1);
+
+  component?.handleMouse?.({
+    type: "click",
+    button: "left",
+    x: 4,
+    y: 0,
+    screenX: 4,
+    screenY: 0,
+    width: 32,
+    height: component.render(32).length,
+    shift: false,
+    alt: false,
+    ctrl: false,
+  });
+  assert.equal(component?.render(32).length, 1);
+
   await commands.get("mcp-sidebar")?.handler("", context);
   assert.equal(options.overlayOptions?.visible?.(100, 30), false);
   await commands.get("mcp-sidebar")?.handler("", context);
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
+  assert.equal(component?.render(32).length, 1, "hide/show must preserve collapse state");
   assert.deepEqual(hidden, [true, false]);
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
 
   tools = [];
   events.get("agent_end")?.();
@@ -92,6 +130,8 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
 
   await commands.get("mcp-sidebar")?.handler("", { ...context, mode: "print" });
   assert.deepEqual(notices.at(-1), ["MCP Sidebar requires interactive TUI mode.", "warning"]);
+  await commands.get("mcp-sidebar-collapse")?.handler("", { ...context, mode: "print" });
+  assert.deepEqual(notices.at(-1), ["MCP Sidebar collapse requires interactive TUI mode.", "warning"]);
   assert.ok(renders >= 2);
 });
 
@@ -105,6 +145,7 @@ test("restores one existing overlay into the new TUI session context", async () 
 
   const pi = {
     registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: () => {},
     on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
     getAllTools: () => [
       {
@@ -114,7 +155,11 @@ test("restores one existing overlay into the new TUI session context", async () 
       },
     ],
   };
-  const theme = { fg: (_tone: string, text: string) => text };
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
   const makeContext = (statuses: [string, string | undefined][]) => ({
     mode: "tui",
     ui: {
@@ -176,6 +221,7 @@ test("refreshes deferred MCP inventory while idle and stops polling on shutdown"
   try {
     extension({
       registerCommand: () => {},
+      registerShortcut: () => {},
       on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
       getAllTools: () => tools,
     } as any);
@@ -188,7 +234,11 @@ test("refreshes deferred MCP inventory while idle and stops polling on shutdown"
         custom: (factory: (...args: any[]) => Component) => {
           component = factory(
             { requestRender: () => renders++ },
-            { fg: (_tone: string, text: string) => text },
+            {
+              fg: (_tone: string, text: string) => text,
+              bold: (text: string) => text,
+              style: (text: string) => text,
+            },
             {},
             () => {},
           );
@@ -252,4 +302,250 @@ test("deduplicates tools and rejects malformed or hidden MCP inventory", () => {
     [{ id: "x", label: "x", toolCount: 1, availability: "available" }],
   );
   assert.deepEqual(buildMcpServers([]), []);
+});
+
+test("mounts below Gentle Shell Status and keeps the standalone overlay as fallback", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const components: Component[] = [];
+  const customOptions: any[] = [];
+  const status: Component = {
+    render: () => ["Status", "Project demo"],
+    invalidate: () => {},
+  };
+  let railOwnsHost = true;
+  const sidebarState = {
+    active: true,
+    ownsHost: () => railOwnsHost,
+    parts: new Map([["footer", status]]),
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: {
+      rows: 40,
+      columns: 140,
+      [Symbol.for("gentle-pi.experimental-sidebar.state")]: sidebarState,
+    },
+    requestRender: () => {},
+  };
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      select: async () => undefined,
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        customOptions.push(options);
+        options.onHandle?.({ setHidden: () => {} });
+        return new Promise<void>((resolve) => {
+          components.push(factory(tui, theme, {}, () => resolve()));
+        });
+      },
+    },
+  };
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{
+      name: "mcp__demo__read",
+      description: "Read demo data.",
+      namespace: { name: "mcp__demo" },
+      exposure: "deferred",
+    }],
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  const wrapper = sidebarState.parts.get("footer")!;
+  assert.notEqual(wrapper, status);
+  assert.equal(customOptions[0]?.overlayOptions?.visible?.(140, 40), false);
+  railOwnsHost = false;
+  assert.equal(
+    customOptions[0]?.overlayOptions?.visible?.(120, 40),
+    false,
+    "MCP must disappear with a mounted Gentle Shell rail that no longer owns the host",
+  );
+  railOwnsHost = true;
+  assert.equal(customOptions[0]?.overlayOptions?.visible?.(140, 40), false);
+  assert.deepEqual(wrapper.render(48).slice(0, 2), ["Status", "Project demo"]);
+  assert.ok(wrapper.render(48).some((line) => line.includes("demo")));
+  const expandedHeight = wrapper.render(48).length;
+  const expandedDigest = (wrapper as Component & { digest?: () => string }).digest?.();
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
+  assert.equal(wrapper.render(48).length, 3, "Status plus one collapsed MCP row");
+  assert.notEqual((wrapper as Component & { digest?: () => string }).digest?.(), expandedDigest);
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
+  assert.equal(wrapper.render(48).length, expandedHeight);
+
+  await commands.get("mcp-sidebar")?.handler("", context);
+  assert.deepEqual(wrapper.render(48), ["Status", "Project demo"]);
+  await commands.get("mcp-sidebar")?.handler("", context);
+  assert.ok(wrapper.render(48).some((line) => line.includes("demo")));
+
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
+  const detailsOpen = commands.get("mcp-tools")!.handler("demo", context);
+  await Promise.resolve();
+  assert.deepEqual(wrapper.render(48), ["Status", "Project demo"]);
+  components[1]?.handleInput?.("\u001b");
+  await detailsOpen;
+  assert.equal(wrapper.render(48).length, 3, "details restore the collapsed panel");
+
+  events.get("session_start")?.({}, context);
+  assert.equal(wrapper.render(48).length, expandedHeight, "session start resets expanded state");
+
+  const replacement: Component = { render: () => ["replacement"], invalidate: () => {} };
+  sidebarState.parts.set("footer", replacement);
+  assert.equal(
+    customOptions[0]?.overlayOptions?.visible?.(140, 40),
+    true,
+    "fallback must reappear if a newer owner replaces the compatible rail wrapper",
+  );
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.equal(sidebarState.parts.get("footer"), replacement);
+});
+
+test("opens one namespace detail modal from command or click and restores the passive sidebar", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const notices: [string, string][] = [];
+  const selections: { title: string; options: string[] }[] = [];
+  const hidden: boolean[] = [];
+  const finished: string[] = [];
+  const components: Component[] = [];
+  const customOptions: any[] = [];
+  const detailDone: (() => void)[] = [];
+  let selected: string | undefined;
+  let sidebarHidden = false;
+
+  const tools = [
+    {
+      name: "mcp__demo__read_item",
+      description: "Read one item from the demo server.",
+      namespace: { name: "mcp__demo" },
+      exposure: "deferred",
+    },
+    {
+      name: "mcp__other__search",
+      description: "Search another server.",
+      namespace: { name: "mcp__other" },
+      exposure: "codemode",
+    },
+  ];
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: { rows: 24, columns: 120 },
+    requestRender: () => {},
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: (message: string, level: string) => notices.push([message, level]),
+      select: async (title: string, options: string[]) => {
+        selections.push({ title, options });
+        return selected;
+      },
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        const callIndex = components.length;
+        customOptions.push(options);
+        if (callIndex === 0) {
+          options.onHandle?.({
+            setHidden: (value: boolean) => {
+              sidebarHidden = value;
+              hidden.push(value);
+            },
+            isHidden: () => sidebarHidden,
+          });
+        }
+        return new Promise<void>((resolve) => {
+          const done = () => {
+            finished.push(callIndex === 0 ? "sidebar" : "details");
+            resolve();
+          };
+          const component = factory(tui, theme, {}, done);
+          components.push(component);
+          if (callIndex > 0) detailDone.push(done);
+        });
+      },
+    },
+  };
+
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => tools,
+  } as any);
+  events.get("session_start")?.({}, context);
+
+  await commands.get("mcp-tools")?.handler("missing", context);
+  assert.deepEqual(notices.at(-1), ["Unknown MCP namespace: missing", "warning"]);
+  assert.equal(components.length, 1);
+
+  selected = undefined;
+  await commands.get("mcp-tools")?.handler("", context);
+  assert.deepEqual(selections.at(-1), {
+    title: "MCP namespace",
+    options: ["demo", "other"],
+  });
+  assert.equal(components.length, 1);
+
+  selected = "demo";
+  const commandOpen = commands.get("mcp-tools")!.handler("", context);
+  await Promise.resolve();
+  assert.equal(components.length, 2);
+  assert.equal(customOptions[1]?.overlayOptions?.nonCapturing, undefined);
+  assert.equal(customOptions[1]?.overlayOptions?.anchor, "center");
+  assert.deepEqual(hidden, [true]);
+  assert.ok(components[1]?.render(48).some((line) => line.includes("read_item")));
+  assert.ok(components[1]?.render(48).some((line) => line.includes("Read one item")));
+
+  await commands.get("mcp-tools")?.handler("other", context);
+  assert.equal(components.length, 2);
+  assert.deepEqual(notices.at(-1), ["MCP tool details are already open.", "info"]);
+
+  components[1]?.handleInput?.("\u001b");
+  await commandOpen;
+  assert.deepEqual(hidden, [true, false]);
+
+  const sidebarLines = components[0]!.render(32);
+  const demoRow = sidebarLines.findIndex((line) => line.includes("demo"));
+  components[0]?.handleMouse?.({
+    type: "click",
+    button: "left",
+    x: 4,
+    y: demoRow,
+    screenX: 4,
+    screenY: demoRow,
+    width: 32,
+    height: sidebarLines.length,
+    shift: false,
+    alt: false,
+    ctrl: false,
+  });
+  await Promise.resolve();
+  assert.equal(components.length, 3);
+  assert.equal(sidebarHidden, true);
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.deepEqual(finished.slice(-2), ["details", "sidebar"]);
 });
