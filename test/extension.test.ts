@@ -268,6 +268,96 @@ test("deduplicates tools and rejects malformed or hidden MCP inventory", () => {
   assert.deepEqual(buildMcpServers([]), []);
 });
 
+test("mounts below Gentle Shell Status and keeps the standalone overlay as fallback", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const components: Component[] = [];
+  const customOptions: any[] = [];
+  const status: Component = {
+    render: () => ["Status", "Project demo"],
+    invalidate: () => {},
+  };
+  let railOwnsHost = true;
+  const sidebarState = {
+    active: true,
+    ownsHost: () => railOwnsHost,
+    parts: new Map([["footer", status]]),
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: {
+      rows: 40,
+      columns: 140,
+      [Symbol.for("gentle-pi.experimental-sidebar.state")]: sidebarState,
+    },
+    requestRender: () => {},
+  };
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      select: async () => undefined,
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        customOptions.push(options);
+        options.onHandle?.({ setHidden: () => {} });
+        return new Promise<void>((resolve) => {
+          components.push(factory(tui, theme, {}, () => resolve()));
+        });
+      },
+    },
+  };
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{
+      name: "mcp__demo__read",
+      description: "Read demo data.",
+      namespace: { name: "mcp__demo" },
+      exposure: "deferred",
+    }],
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  const wrapper = sidebarState.parts.get("footer")!;
+  assert.notEqual(wrapper, status);
+  assert.equal(customOptions[0]?.overlayOptions?.visible?.(140, 40), false);
+  railOwnsHost = false;
+  assert.equal(
+    customOptions[0]?.overlayOptions?.visible?.(120, 40),
+    true,
+    "fallback must reappear when the native rail no longer owns the host",
+  );
+  railOwnsHost = true;
+  assert.equal(customOptions[0]?.overlayOptions?.visible?.(140, 40), false);
+  assert.deepEqual(wrapper.render(48).slice(0, 2), ["Status", "Project demo"]);
+  assert.ok(wrapper.render(48).some((line) => line.includes("demo")));
+
+  await commands.get("mcp-sidebar")?.handler("", context);
+  assert.deepEqual(wrapper.render(48), ["Status", "Project demo"]);
+  await commands.get("mcp-sidebar")?.handler("", context);
+  assert.ok(wrapper.render(48).some((line) => line.includes("demo")));
+
+  const detailsOpen = commands.get("mcp-tools")!.handler("demo", context);
+  await Promise.resolve();
+  assert.deepEqual(wrapper.render(48), ["Status", "Project demo"]);
+  components[1]?.handleInput?.("\u001b");
+  await detailsOpen;
+  assert.ok(wrapper.render(48).some((line) => line.includes("demo")));
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.equal(sidebarState.parts.get("footer"), status);
+});
+
 test("opens one namespace detail modal from command or click and restores the passive sidebar", async () => {
   const commands = new Map<string, CommandRegistration>();
   const events = new Map<string, (...args: any[]) => void>();

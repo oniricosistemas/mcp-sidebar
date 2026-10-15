@@ -94,7 +94,9 @@ test("renders a width-safe panel without claiming transport connectivity", () =>
 
   assert.equal(lines[0], "╭─ MCP servers ──────────────╮");
   assert.ok(lines.some((line) => line.includes("context7") && line.includes("2 tools")));
-  assert.ok(lines.some((line) => line.includes("status unknown")));
+  assert.ok(lines.some((line) => line.includes("tools registered")));
+  assert.ok(lines.some((line) => line.includes("connection status: /mcp")));
+  assert.ok(lines.every((line) => !line.includes("status unknown")));
   assert.ok(lines.every((line) => visibleWidth(line) <= 30));
 });
 
@@ -130,8 +132,9 @@ test("bounds large inventories and keeps the overflow path visible", () => {
   assert.ok(lines.some((line) => line.includes("Showing 8 of 12 · /mcp")));
   assert.ok(lines.some((line) => line.includes("server-08")));
   assert.ok(lines.every((line) => !line.includes("server-09")));
-  assert.ok(lines.some((line) => line.includes("status unknown")));
-  assert.ok(lines.length <= 13);
+  assert.ok(lines.some((line) => line.includes("tools registered")));
+  assert.ok(lines.some((line) => line.includes("connection status: /mcp")));
+  assert.ok(lines.length <= 14);
 });
 
 test("maps only visible namespace rows to click activation without taking focus", () => {
@@ -218,6 +221,9 @@ test("renders bounded theme-aware tool descriptions with scroll guidance", () =>
   );
 
   assert.equal(lines.length, 9);
+  assert.ok(lines.some((line) => line.includes("tools registered")));
+  assert.ok(lines.some((line) => line.includes("/mcp")));
+  assert.ok(lines.every((line) => !line.includes("status unknown")));
   assert.ok(lines.some((line) => line.includes("query_docs")));
   assert.ok(lines.some((line) => line.includes("↑/↓ scroll · esc close")));
   assert.ok(lines.every((line) => visibleWidth(line) <= 46));

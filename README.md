@@ -12,8 +12,8 @@
 </div>
 
 > [!IMPORTANT]
-> This project is an early MVP. Pi currently exposes overlays, not a width-reserving sidebar slot,
-> so the panel behaves as a responsive right-side overlay.
+> In compatible Gentle Shell fullscreen sessions, the panel joins the native Status rail and flows
+> directly below it. Plain Pi, narrow terminals, and incompatible hosts keep the passive overlay fallback.
 
 <div align="center">
   <img src="assets/mcp-sidebar-tui.svg" alt="MCP Sidebar showing eight MCP tool namespaces in Pi" width="420" />
@@ -52,17 +52,17 @@ authentication, reconnection, and configuration.
 
 | Signal | Meaning |
 |---|---|
-| `available` | Pi currently exposes one or more tools from this MCP namespace. |
-| `status unknown` | Pi's public extension API cannot prove the transport is connected. |
+| `tools registered` | Pi currently exposes one or more tools from this MCP namespace. |
+| `connection status: /mcp` | Open Pi's authoritative MCP screen for transport and authentication state. |
 
-The extension deliberately avoids claiming a server is connected when it can only see
-registered tools. It also leaves Pi's built-in `/mcp` command untouched.
+Registered tools do not prove that the underlying transport is still connected. The extension
+therefore directs connection checks to `/mcp` and never claims connected state from inventory alone.
 
 ## Design goals
 
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
-- **Non-blocking:** the overlay does not capture keyboard focus.
-- **Responsive:** narrow terminals fall back without covering the editor.
+- **Non-blocking:** neither the native rail participant nor the overlay fallback captures editor focus.
+- **Responsive:** Gentle Shell stacks participating rail panels by rendered height; narrow terminals fall back to the overlay.
 - **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
 - **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
 - **Honest:** availability is reported separately from connection health.
@@ -83,22 +83,28 @@ pi -e .
 
 ```text
 src/
-├── extension.ts       # Pi lifecycle and /mcp-sidebar command
-├── mcp-view-model.ts  # MCP namespace discovery and honest labels
-└── sidebar.ts         # Width-safe TUI rendering
+├── extension.ts              # Pi lifecycle, commands, and presentation switching
+├── gentle-shell-adapter.ts   # Guarded native-rail integration and stacked participants
+├── mcp-view-model.ts         # MCP namespace discovery and honest labels
+├── sidebar.ts                # Width-safe TUI rendering and row interaction
+└── tool-details.ts           # Scrollable namespace tool descriptions
 ```
 
-The MVP observes Pi's public tool inventory. Because built-in MCP connections register tools
-asynchronously, the extension samples that inventory once per second and renders only when it
-changes. A future native version can use a width-reserving layout slot and sanitized MCP
-runtime-status subscription if Pi exposes them.
+The extension observes Pi's public tool inventory. Because built-in MCP connections register tools
+asynchronously, it samples that inventory once per second and renders only when it changes.
+
+Gentle Shell integration is feature-detected through its terminal-owned rail state. The adapter
+composes the existing Status footer by identity, routes mouse coordinates using actual rendered
+heights, and restores the prior owner on disposal. If the rail is absent or stops owning the layout
+—for example after a narrow resize—the passive overlay automatically becomes visible again.
 
 ## Roadmap
 
 - [x] Project and package foundation
 - [x] Responsive passive sidebar MVP
 - [x] Runtime screenshots and visual tuning
-- [ ] Upstream proposal for a native sidebar slot
+- [x] Feature-detected Gentle Shell rail stacking with standalone fallback
+- [ ] Upstream proposal for a documented native sidebar slot
 - [ ] Upstream proposal for sanitized MCP status events
 
 ## Gentle AI attribution

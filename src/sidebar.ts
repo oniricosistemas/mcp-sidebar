@@ -58,10 +58,11 @@ export function renderSidebarLayout(
   const innerWidth = safeWidth - 4;
   const lines = [
     top,
-    row(paint("status unknown · use /mcp", "dim"), safeWidth, paint),
+    row(paint("tools registered", "dim"), safeWidth, paint),
+    row(paint("connection status: /mcp", "dim"), safeWidth, paint),
     row("", safeWidth, paint),
   ];
-  const rowIds: (string | undefined)[] = [undefined, undefined, undefined];
+  const rowIds: (string | undefined)[] = [undefined, undefined, undefined, undefined];
 
   if (servers.length === 0) {
     lines.push(row(paint("No registered MCP tools yet", "dim"), safeWidth, paint));

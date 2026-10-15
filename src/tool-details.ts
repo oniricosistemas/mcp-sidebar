@@ -84,7 +84,7 @@ export function renderToolDetailsLines(
     frameTitle(namespaceLabel, safeWidth, paint),
     row(
       paint(
-        `${tools.length} ${tools.length === 1 ? "tool" : "tools"} · status unknown`,
+        `${tools.length} ${tools.length === 1 ? "tool" : "tools"} registered · status: /mcp`,
         "dim",
       ),
       safeWidth,

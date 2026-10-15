@@ -6,12 +6,17 @@ import {
   buildMcpToolDetails,
   type McpServerView,
 } from "./mcp-view-model.ts";
+import {
+  attachGentleShellRailPanel,
+  type GentleShellRailAttachment,
+} from "./gentle-shell-adapter.ts";
 import { McpSidebar } from "./sidebar.ts";
 import { McpToolDetails } from "./tool-details.ts";
 
 export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let panel: McpSidebar | undefined;
   let handle: OverlayHandle | undefined;
+  let railAttachment: GentleShellRailAttachment | undefined;
   let finishOverlay: (() => void) | undefined;
   let finishDetails: (() => void) | undefined;
   let detailsOpen = false;
@@ -23,6 +28,12 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
   const currentServers = (): McpServerView[] => buildMcpServers(pi.getAllTools());
 
+  const syncPresentation = (): void => {
+    const showPanel = visible && !detailsOpen;
+    railAttachment?.setVisible(showPanel);
+    handle?.setHidden(!showPanel);
+  };
+
   const refresh = (): void => {
     const servers = currentServers();
     const nextFingerprint = JSON.stringify(servers);
@@ -30,6 +41,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
     inventoryFingerprint = nextFingerprint;
     panel?.setServers(servers);
+    railAttachment?.invalidate();
     const namespaceLabel = servers.length === 1 ? "namespace" : "namespaces";
     activeContext?.ui.setStatus(
       "mcp-sidebar",
@@ -73,7 +85,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
     const tools = buildMcpToolDetails(pi.getAllTools(), server.id);
     detailsOpen = true;
-    handle?.setHidden(true);
+    syncPresentation();
 
     try {
       await ctx.ui.custom<void>(
@@ -99,7 +111,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     } finally {
       detailsOpen = false;
       finishDetails = undefined;
-      if (!shuttingDown) handle?.setHidden(!visible);
+      if (!shuttingDown) syncPresentation();
     }
   };
 
@@ -115,6 +127,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
           panel = new McpSidebar(tui, theme, (namespaceId) => {
             if (activeContext) void openDetails(namespaceId, activeContext);
           });
+          railAttachment = attachGentleShellRailPanel(tui, panel);
           refresh();
           return panel;
         },
@@ -127,15 +140,19 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
             maxHeight: "70%",
             margin: { right: 2, bottom: 1 },
             nonCapturing: true,
-            visible: (terminalWidth) => visible && terminalWidth >= 100,
+            visible: (terminalWidth) =>
+              railAttachment?.isActive() !== true && visible && terminalWidth >= 100,
           },
           onHandle: (overlayHandle) => {
             handle = overlayHandle;
+            if (!visible || detailsOpen) handle.setHidden(true);
           },
         },
       )
       .finally(() => {
         stopRefreshTimer();
+        railAttachment?.dispose();
+        railAttachment = undefined;
         panel = undefined;
         handle = undefined;
         finishOverlay = undefined;
@@ -153,7 +170,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
       mount(ctx);
       visible = !visible;
-      handle?.setHidden(detailsOpen || !visible);
+      syncPresentation();
       ctx.ui.notify(`MCP Sidebar ${visible ? "shown" : "hidden"}.`, "info");
     },
   });
@@ -192,8 +209,8 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     if (ctx.mode === "tui" && panel) {
       activeContext = ctx;
       inventoryFingerprint = undefined;
-      handle?.setHidden(false);
       refresh();
+      syncPresentation();
       startRefreshTimer();
       return;
     }
@@ -209,6 +226,8 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     stopRefreshTimer();
     activeContext?.ui.setStatus("mcp-sidebar", undefined);
     finishDetails?.();
+    railAttachment?.dispose();
+    railAttachment = undefined;
     finishOverlay?.();
     activeContext = undefined;
     inventoryFingerprint = undefined;
