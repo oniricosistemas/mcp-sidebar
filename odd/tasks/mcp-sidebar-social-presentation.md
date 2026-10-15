@@ -1,0 +1,41 @@
+# MCP Sidebar Social Presentation
+Objective: Create a Spanish, local-first social presentation pack that explains the engineering process, presents MCP Sidebar as a product, and positions Lucas M. Sastre professionally.
+Branch: `feat/mcp-sidebar-social-presentation` · Delivery: local review only; no Gist, Pages, or social publication without separate authorization.
+
+## Specs
+
+1. **S1 — Reference-quality interactive deck.** Preserve the request verbatim: “dime si eres capaz de hacer una presentación como esta https://gistpreview.github.io/?c91e03cbf1796abb029a756f735c737c/index.html#1 para poder postear en linkedin / X / discord sobre el trabajo que hicimos”. Build a responsive Spanish slide deck inspired by that single-file HTML presentation: keyboard, touch, hash navigation, fullscreen, progress, accessible labels, reduced-motion support, and print/PDF layout.
+2. **S2 — Audience and goals.** Preserve the selected audiences verbatim: “Usuarios de Gentle Shell/Pi.”, “Desarrolladores de agentes.”, and “Público técnico general.” Preserve the selected goals verbatim: “Mostrar el proceso de ingeniería.”, “Presentar MCP Sidebar como producto.”, and “Posicionamiento personal/profesional.” The narrative must lead with the outcome, explain constraints and architecture without assuming repository knowledge, and end with an actionable repository/contact CTA.
+3. **S3 — Identity and visual direction.** Preserve the selections verbatim: “Lucas + Gentle Shell — recomendado” and “Híbrida MCP + Gentleman-Cute — recomendado”. Use Lucas M. Sastre as the author, Gentle Shell/Pi as ecosystem context, and a hybrid visual language combining Gentleman-Cute colors with MCP Sidebar terminal, rail, namespace, tool-detail, and responsive-layout motifs.
+4. **S4 — Recreated evidence.** Preserve the selection verbatim: “Recrear capturas limpias — recomendado”. Generate controlled screenshots from the shipped extension showing the wide native rail, expanded/collapsed MCP states, tool details, and narrow-width joint disappearance where feasible. Never fabricate connection status or claim behavior not observed.
+5. **S5 — Complete local-first pack.** Preserve the selection verbatim: “Pack completo local primero — recomendado”. Produce the interactive HTML deck, printable PDF, platform-ready carousel images/assets, and tailored Spanish copy for LinkedIn, X, and Discord. Keep everything local for review; do not create a Gist, enable Pages, or post to any network.
+6. **S6 — Verified, reproducible exports.** The deck source and export process must be documented and reproducible from the repository. Verify navigation, responsive layouts, console cleanliness, slide bounds, link targets, print output, expected asset dimensions, and that exported social assets correspond to the approved deck content.
+
+## Tasks
+
+- **T1** · S1-S3 · inline (story architecture, content hierarchy, visual tokens, structural RED tests) · done · commits: `bc33152`, `79b1ffe`
+- **T2** · S4 · inline (controlled Gentle Shell/Pi screenshots and evidence curation) · done · commit: `4bbbeae`
+- **T3** · S1-S4 · inline (responsive interactive deck implementation and accessible navigation) · pending · commit: —
+- **T4** · S2-S6 · inline (PDF, social carousels, platform-specific copy, and reproducible export tooling) · pending · commit: —
+- **T5** · S1-S6 · inline (browser/print verification, documentation, packaging review, and final evidence) · pending · commit: —
+
+## Log
+
+- **L1 — Original request:** “dime si eres capaz de hacer una presentación como esta https://gistpreview.github.io/?c91e03cbf1796abb029a756f735c737c/index.html#1 
+para poder postear en linkedin / X / discord sobre el trabajo que hicimos
+Dime si eres capaz de hacerlo o que necesitas, no hagas nada todavia”
+- **L2 — Content selections:** “1- español
+2-  - Usuarios de Gentle Shell/Pi.
+     - Desarrolladores de agentes.
+     - Público técnico general.
+3-  - Mostrar el proceso de ingeniería.
+     - Presentar MCP Sidebar como producto.
+     - Posicionamiento personal/profesional.
+4- - 
+     - Lucas M. Sastre, Gentle Shell o ambos.
+     - Si usamos Gentleman-Cute como en el ejemplo o una estética propia del proyecto.”
+- **L3 — Final guided selections:** Identity “Lucas + Gentle Shell — recomendado”; aesthetic “Híbrida MCP + Gentleman-Cute — recomendado”; visual material “Recrear capturas limpias — recomendado”; delivery “Pack completo local primero — recomendado”.
+- **L4 — Implementation authorization:** “vamos con tuti”. This authorizes the full local pack and its necessary implementation, screenshots, exports, documentation, checks, and work-unit commits. It does not authorize external publication.
+- **L5 — Reference inspection:** The linked Gist is a Spanish, responsive, single-file HTML deck using Gentleman-Cute tokens, 13 hash-addressed slides, keyboard/touch navigation, fullscreen, a progress bar, reduced-motion behavior, responsive scrolling, and one-slide-per-page print CSS. The new deck will reuse the interaction model, not copy its topic or wording.
+- **L6 — T1 RED/GREEN:** Structural RED failed 3/3 because `presentation/content.json` did not exist. GREEN defines the Spanish identity (Lucas M. Sastre · Gentle Shell/Pi), the three selected audiences and goals verbatim, hybrid MCP + Gentleman-Cute tokens, and 13 bounded slides (`cover` → `cta`) whose technical claims cite observed evidence (22/22 tests, 1.670-line diff, 390-line max slice, PR #6, 140→120→140) and never claim MCP connectivity. Focused tests pass 3/3. Commits: `bc33152`; file-mode normalization `79b1ffe`.
+- **L7 — T2 captures and rendering:** Controlled captures come from the real shipped extension: `gentle-shell -- -e .` at 140×40 (expanded native rail, `/mcp-tools context7` details modal, `/mcp-sidebar-collapse` one-row header) plus a themed plain-Pi session for the floating-overlay evolution evidence and a 120-column narrow capture proving joint disappearance. `presentation/tools/render-capture.mjs` converts tmux ANSI captures to framed PNGs via headless Chrome. Two rendering defects were reproduced and fixed: cell width underestimated real monospace metrics (clipping `ctrl+shift+m`), and Pi standalone needed `--theme … --use-theme Gentleman-Cute` to avoid a startup theme error in product evidence. Final assets: `evolution.png`, `tool-details.png`, `native-rail.png`, `collapse-responsive.png` (1487×962). Commit: `4bbbeae`.
