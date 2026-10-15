@@ -34,7 +34,11 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
     on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
     getAllTools: () => tools,
   };
-  const theme = { fg: (_tone: string, text: string) => `\x1b[32m${text}\x1b[0m` };
+  const theme = {
+    fg: (_tone: string, text: string) => `\x1b[32m${text}\x1b[0m`,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
   const context = {
     mode: "tui",
     ui: {
@@ -114,7 +118,11 @@ test("restores one existing overlay into the new TUI session context", async () 
       },
     ],
   };
-  const theme = { fg: (_tone: string, text: string) => text };
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
   const makeContext = (statuses: [string, string | undefined][]) => ({
     mode: "tui",
     ui: {
@@ -188,7 +196,11 @@ test("refreshes deferred MCP inventory while idle and stops polling on shutdown"
         custom: (factory: (...args: any[]) => Component) => {
           component = factory(
             { requestRender: () => renders++ },
-            { fg: (_tone: string, text: string) => text },
+            {
+              fg: (_tone: string, text: string) => text,
+              bold: (text: string) => text,
+              style: (text: string) => text,
+            },
             {},
             () => {},
           );
