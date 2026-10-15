@@ -15,6 +15,7 @@ export type SidebarPaint = (text: string, tone?: SidebarTone) => string;
 export interface SidebarLayout {
   lines: string[];
   rowIds: (string | undefined)[];
+  collapseRows: boolean[];
 }
 
 const MAX_VISIBLE_SERVERS = 8;
@@ -47,10 +48,27 @@ export function renderSidebarLayout(
   width: number,
   paint: SidebarPaint,
   selectedId?: string,
+  collapsed = false,
 ): SidebarLayout {
   const safeWidth = Math.max(20, width);
-  const titlePrefix = "╭─ MCP servers ";
-  const top = `${paint("╭─ ", "border")}${paint("MCP servers", "title")}${paint(
+  const namespaceLabel = `${servers.length} ${servers.length === 1 ? "namespace" : "namespaces"}`;
+  if (collapsed) {
+    const leftLabel = safeWidth >= 34 ? "MCP servers ▸ Expand" : "MCP ▸ Expand";
+    const rightLabel = safeWidth >= 48
+      ? `${namespaceLabel} · ctrl+shift+m`
+      : safeWidth >= 29
+        ? namespaceLabel
+        : `${servers.length} ns`;
+    return {
+      lines: [columns(paint(leftLabel, "title"), paint(rightLabel, "dim"), safeWidth)],
+      rowIds: [undefined],
+      collapseRows: [true],
+    };
+  }
+
+  const title = safeWidth >= 27 ? "MCP servers ▾ Collapse" : "MCP ▾ Collapse";
+  const titlePrefix = `╭─ ${title} `;
+  const top = `${paint("╭─ ", "border")}${paint(title, "title")}${paint(
     ` ${"─".repeat(Math.max(0, safeWidth - visibleWidth(titlePrefix) - 1))}╮`,
     "border",
   )}`;
@@ -63,10 +81,12 @@ export function renderSidebarLayout(
     row("", safeWidth, paint),
   ];
   const rowIds: (string | undefined)[] = [undefined, undefined, undefined, undefined];
+  const collapseRows = [true, false, false, false];
 
   if (servers.length === 0) {
     lines.push(row(paint("No registered MCP tools yet", "dim"), safeWidth, paint));
     rowIds.push(undefined);
+    collapseRows.push(false);
   } else {
     const visibleServers = servers.slice(0, MAX_VISIBLE_SERVERS);
     if (visibleServers.length < servers.length) {
@@ -78,6 +98,7 @@ export function renderSidebarLayout(
         ),
       );
       rowIds.push(undefined);
+      collapseRows.push(false);
     }
     for (const server of visibleServers) {
       const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
@@ -91,12 +112,14 @@ export function renderSidebarLayout(
         ),
       );
       rowIds.push(server.id);
+      collapseRows.push(false);
     }
   }
 
   lines.push(bottom);
   rowIds.push(undefined);
-  return { lines, rowIds };
+  collapseRows.push(false);
+  return { lines, rowIds, collapseRows };
 }
 
 export function renderSidebarLines(
@@ -112,17 +135,22 @@ export class McpSidebar implements Component {
   private readonly tui: TUI;
   private readonly theme: Theme;
   private readonly onOpenNamespace?: (namespaceId: string) => void;
+  private readonly onCollapsedChange?: (collapsed: boolean) => void;
   private rowIds: (string | undefined)[] = [];
+  private collapseRows: boolean[] = [];
   private selectedId: string | undefined;
+  private collapsed = false;
 
   constructor(
     tui: TUI,
     theme: Theme,
     onOpenNamespace?: (namespaceId: string) => void,
+    onCollapsedChange?: (collapsed: boolean) => void,
   ) {
     this.tui = tui;
     this.theme = theme;
     this.onOpenNamespace = onOpenNamespace;
+    this.onCollapsedChange = onCollapsedChange;
   }
 
   setServers(servers: readonly McpServerView[]): void {
@@ -135,8 +163,28 @@ export class McpSidebar implements Component {
     this.tui.requestRender();
   }
 
+  setCollapsed(collapsed: boolean): void {
+    if (this.collapsed === collapsed) return;
+    this.collapsed = collapsed;
+    this.selectedId = undefined;
+    this.invalidate();
+    this.tui.requestRender();
+  }
+
+  isCollapsed(): boolean {
+    return this.collapsed;
+  }
+
+  digest(): string {
+    return JSON.stringify([
+      this.collapsed,
+      this.servers.map((server) => [server.id, server.toolCount]),
+    ]);
+  }
+
   invalidate(): void {
     this.rowIds = [];
+    this.collapseRows = [];
   }
 
   handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
@@ -144,8 +192,15 @@ export class McpSidebar implements Component {
       return undefined;
     }
 
+    const collapseRow = this.collapseRows[event.y] === true;
     const namespaceId = this.rowIds[event.y];
     if (event.type === "move") {
+      if (collapseRow) {
+        const hadSelection = this.selectedId !== undefined;
+        this.selectedId = undefined;
+        if (hadSelection) this.tui.requestRender();
+        return { handled: true, render: hadSelection };
+      }
       if (namespaceId === this.selectedId) return namespaceId ? { handled: true, render: false } : undefined;
       const hadSelection = this.selectedId !== undefined;
       this.selectedId = namespaceId;
@@ -156,7 +211,16 @@ export class McpSidebar implements Component {
       return undefined;
     }
 
-    if (!namespaceId || event.button !== "left") return undefined;
+    if (event.button !== "left") return undefined;
+    if (collapseRow) {
+      if (event.type === "press") return { handled: true, render: false };
+      if (event.type !== "click") return undefined;
+      this.setCollapsed(!this.collapsed);
+      this.onCollapsedChange?.(this.collapsed);
+      return { handled: true, render: true };
+    }
+
+    if (!namespaceId) return undefined;
     if (event.type === "press") return { handled: true, render: false };
     if (event.type !== "click") return undefined;
 
@@ -181,8 +245,10 @@ export class McpSidebar implements Component {
         }
       },
       this.selectedId,
+      this.collapsed,
     );
     this.rowIds = layout.rowIds;
+    this.collapseRows = layout.collapseRows;
     return layout.lines;
   }
 }

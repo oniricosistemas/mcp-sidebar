@@ -45,6 +45,16 @@ The keyboard path works in every interactive TUI mode:
 Use arrow keys or Page Up/Page Down to scroll tool details and Escape to close them.
 The sidebar and details dialog use semantic colors from the currently selected Pi theme.
 
+Collapse or expand the panel by clicking its header, running:
+
+```text
+/mcp-sidebar-collapse
+```
+
+or pressing `Ctrl+Shift+M`. Some legacy terminals cannot distinguish that modified key,
+so the command is the reliable fallback. `/mcp-sidebar` continues to hide or show the panel
+without changing its collapsed state.
+
 Use Pi's built-in `/mcp` screen for authoritative connection details,
 authentication, reconnection, and configuration.
 
@@ -63,6 +73,7 @@ therefore directs connection checks to `/mcp` and never claims connected state f
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
 - **Non-blocking:** neither the native rail participant nor the overlay fallback captures editor focus.
 - **Responsive:** Gentle Shell stacks participating rail panels by rendered height; narrow terminals fall back to the overlay.
+- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to one summary row.
 - **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
 - **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
 - **Honest:** availability is reported separately from connection health.
