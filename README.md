@@ -12,8 +12,9 @@
 </div>
 
 > [!IMPORTANT]
-> In compatible Gentle Shell fullscreen sessions, the panel joins the native Status rail and flows
-> directly below it. Plain Pi, narrow terminals, and incompatible hosts keep the passive overlay fallback.
+> In compatible Gentle Shell fullscreen sessions, the panel joins the native Status rail and follows
+> its visibility: when the rail disappears at a narrow width, MCP disappears too. Plain Pi and
+> incompatible hosts keep the passive overlay fallback.
 
 <div align="center">
   <img src="assets/mcp-sidebar-tui.svg" alt="MCP Sidebar showing eight MCP tool namespaces in Pi" width="420" />
@@ -45,6 +46,16 @@ The keyboard path works in every interactive TUI mode:
 Use arrow keys or Page Up/Page Down to scroll tool details and Escape to close them.
 The sidebar and details dialog use semantic colors from the currently selected Pi theme.
 
+Collapse or expand the panel by clicking its header, running:
+
+```text
+/mcp-sidebar-collapse
+```
+
+or pressing `Ctrl+Shift+M`. Some legacy terminals cannot distinguish that modified key,
+so the command is the reliable fallback. `/mcp-sidebar` continues to hide or show the panel
+without changing its collapsed state.
+
 Use Pi's built-in `/mcp` screen for authoritative connection details,
 authentication, reconnection, and configuration.
 
@@ -62,7 +73,8 @@ therefore directs connection checks to `/mcp` and never claims connected state f
 
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
 - **Non-blocking:** neither the native rail participant nor the overlay fallback captures editor focus.
-- **Responsive:** Gentle Shell stacks participating rail panels by rendered height; narrow terminals fall back to the overlay.
+- **Responsive:** Gentle Shell stacks participating rail panels by rendered height and hides them together at narrow widths; standalone Pi retains the overlay.
+- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to one summary row.
 - **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
 - **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
 - **Honest:** availability is reported separately from connection health.
@@ -95,8 +107,9 @@ asynchronously, it samples that inventory once per second and renders only when 
 
 Gentle Shell integration is feature-detected through its terminal-owned rail state. The adapter
 composes the existing Status footer by identity, routes mouse coordinates using actual rendered
-heights, and restores the prior owner on disposal. If the rail is absent or stops owning the layout
-—for example after a narrow resize—the passive overlay automatically becomes visible again.
+heights, and restores the prior owner on disposal. While that compatible wrapper remains mounted,
+MCP follows the Status rail's visibility, including narrow-width hiding. The passive overlay is used
+only when the integration is absent, incompatible, disposed, or replaced by a newer owner.
 
 ## Roadmap
 
