@@ -370,8 +370,8 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   railOwnsHost = false;
   assert.equal(
     customOptions[0]?.overlayOptions?.visible?.(120, 40),
-    true,
-    "fallback must reappear when the native rail no longer owns the host",
+    false,
+    "MCP must disappear with a mounted Gentle Shell rail that no longer owns the host",
   );
   railOwnsHost = true;
   assert.equal(customOptions[0]?.overlayOptions?.visible?.(140, 40), false);
@@ -401,9 +401,17 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   events.get("session_start")?.({}, context);
   assert.equal(wrapper.render(48).length, expandedHeight, "session start resets expanded state");
 
+  const replacement: Component = { render: () => ["replacement"], invalidate: () => {} };
+  sidebarState.parts.set("footer", replacement);
+  assert.equal(
+    customOptions[0]?.overlayOptions?.visible?.(140, 40),
+    true,
+    "fallback must reappear if a newer owner replaces the compatible rail wrapper",
+  );
+
   events.get("session_shutdown")?.();
   await Promise.resolve();
-  assert.equal(sidebarState.parts.get("footer"), status);
+  assert.equal(sidebarState.parts.get("footer"), replacement);
 });
 
 test("opens one namespace detail modal from command or click and restores the passive sidebar", async () => {

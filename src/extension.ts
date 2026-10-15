@@ -151,7 +151,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
             margin: { right: 2, bottom: 1 },
             nonCapturing: true,
             visible: (terminalWidth) =>
-              railAttachment?.isActive() !== true && visible && terminalWidth >= 100,
+              railAttachment?.isMounted() !== true && visible && terminalWidth >= 100,
           },
           onHandle: (overlayHandle) => {
             handle = overlayHandle;
