@@ -165,7 +165,9 @@ test("falls back on incompatible hosts and never overwrites a newer footer owner
   } as any;
   const attachment = attachGentleShellRailPanel(tui, panel);
   assert.ok(attachment);
+  assert.equal(attachment.isMounted(), true);
   state.parts.set("footer", replacement);
+  assert.equal(attachment.isMounted(), false);
 
   attachment.dispose();
   attachment.dispose();
