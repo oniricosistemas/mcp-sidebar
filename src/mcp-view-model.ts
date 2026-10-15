@@ -1,9 +1,15 @@
 export interface ToolDescriptor {
   name: string;
+  description?: string;
   exposure?: string;
   namespace?: {
     name: string;
   };
+}
+
+export interface McpToolDetail {
+  name: string;
+  description: string;
 }
 
 export interface McpServerView {
@@ -41,6 +47,28 @@ export function buildMcpServers(tools: readonly ToolDescriptor[]): McpServerView
       toolCount: names.size,
       availability: "available" as const,
     }));
+}
+
+export function buildMcpToolDetails(
+  tools: readonly ToolDescriptor[],
+  namespaceId: string,
+): McpToolDetail[] {
+  const namespace = `${MCP_PREFIX}${namespaceId}`;
+  const prefix = `${namespace}__`;
+  const details = new Map<string, McpToolDetail>();
+
+  for (const tool of tools) {
+    if (tool.exposure === "hidden") continue;
+    if (tool.namespace?.name !== namespace || !tool.name.startsWith(prefix)) continue;
+    if (details.has(tool.name)) continue;
+
+    details.set(tool.name, {
+      name: tool.name.slice(prefix.length),
+      description: tool.description?.trim() || "No description provided.",
+    });
+  }
+
+  return [...details.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export function shouldShowSidebar(terminalWidth: number): boolean {
