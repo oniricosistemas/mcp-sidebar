@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>NAV</title></head>
+<body>
+<iframe id="deck" src="../index.html#1" style="width:1600px;height:900px;border:0"></iframe>
+<script>
+  // Reproducible keyboard-navigation check for the deck.
+  // Run: google-chrome --headless=new --no-sandbox --allow-file-access-from-files \
+  //        --virtual-time-budget=5000 --dump-dom presentation/tools/nav-check.html | grep '<title>'
+  // Expected: RESULT problem constraints problem end=cta home=cover overflows=none
+  const frame = document.getElementById('deck');
+  frame.onload = () => {
+    const w = frame.contentWindow;
+    const d = w.document;
+    const key = (k) => d.dispatchEvent(new w.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    const active = () => d.querySelector('.slide.active')?.dataset.slide ?? 'none';
+    const slides = [...d.querySelectorAll('.slide')];
+    const overflows = slides.filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.dataset.slide);
+
+    key('ArrowRight'); const a = active();
+    key('ArrowRight'); const b = active();
+    key('ArrowLeft');  const c = active();
+    key('End');        const end = active();
+    key('Home');       const home = active();
+
+    document.title = `RESULT ${a} ${b} ${c} end=${end} home=${home} overflows=${overflows.join(',') || 'none'}`;
+  };
+</script>
+</body>
+</html>

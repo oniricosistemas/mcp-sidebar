@@ -37,8 +37,15 @@ test("exports a cover card and one PDF page per slide", async () => {
   const pdf = await readFile(new URL("mcp-sidebar-deck.pdf", exportsRoot)).catch(() => null);
   assert.ok(pdf, "presentation/exports/mcp-sidebar-deck.pdf must exist");
   assert.equal(pdf.subarray(0, 5).toString("latin1"), "%PDF-");
-  const pages = (pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+  const raw = pdf.toString("latin1");
+  const pages = (raw.match(/\/Type\s*\/Page[^s]/g) ?? []).length;
   assert.equal(pages, story.slides.length, "PDF must have one page per slide");
+  const mediaBox = raw.match(/\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/);
+  assert.ok(mediaBox, "PDF must declare its page MediaBox");
+  const pageWidthPt = Number(mediaBox[3]) - Number(mediaBox[1]);
+  const pageHeightPt = Number(mediaBox[4]) - Number(mediaBox[2]);
+  assert.ok(Math.abs(pageWidthPt - 1200) < 2, `PDF page width must be 1600px (1200pt), got ${pageWidthPt}pt`);
+  assert.ok(Math.abs(pageHeightPt - 675) < 2, `PDF page height must be 900px (675pt), got ${pageHeightPt}pt`);
 });
 
 test("writes Spanish copy within each platform's limits", async () => {
