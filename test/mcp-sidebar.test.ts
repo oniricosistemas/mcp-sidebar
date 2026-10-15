@@ -9,7 +9,7 @@ import {
   shouldShowSidebar,
   type ToolDescriptor,
 } from "../src/mcp-view-model.ts";
-import { renderToolDetailsLines } from "../src/tool-details.ts";
+import { McpToolDetails, renderToolDetailsLines } from "../src/tool-details.ts";
 import { McpSidebar, renderSidebarLayout, renderSidebarLines } from "../src/sidebar.ts";
 
 const tools: ToolDescriptor[] = [
@@ -225,4 +225,41 @@ test("renders bounded theme-aware tool descriptions with scroll guidance", () =>
   assert.ok(tones.includes("title"));
   assert.ok(tones.includes("accent"));
   assert.ok(tones.includes("dim"));
+});
+
+test("scrolls and closes the capturing detail component without exceeding terminal bounds", () => {
+  let renders = 0;
+  let closes = 0;
+  const terminal = { rows: 12, columns: 80 };
+  const details = new McpToolDetails(
+    { terminal, requestRender: () => renders++ } as any,
+    {
+      fg: (_tone: string, text: string) => text,
+      bold: (text: string) => text,
+    } as any,
+    "demo",
+    Array.from({ length: 8 }, (_, index) => ({
+      name: `tool_${index + 1}`,
+      description: `Description for tool ${index + 1}.`,
+    })),
+    () => closes++,
+  );
+
+  const initial = details.render(42);
+  details.handleInput("\u001b[B");
+  details.handleInput("\u001b[6~");
+  const scrolled = details.render(42);
+
+  assert.ok(renders >= 1);
+  assert.notDeepEqual(scrolled, initial);
+  assert.ok(scrolled.length <= Math.floor(terminal.rows * 0.8));
+  assert.ok(scrolled.every((line) => visibleWidth(line) <= 42));
+
+  terminal.rows = 40;
+  const resized = details.render(42);
+  assert.ok(resized.length <= Math.floor(terminal.rows * 0.8));
+
+  details.handleInput("\u001b");
+  details.handleInput("\u0003");
+  assert.equal(closes, 1);
 });
