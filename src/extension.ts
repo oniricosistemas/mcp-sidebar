@@ -121,11 +121,11 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
         {
           overlay: true,
           overlayOptions: {
-            anchor: "right-center",
-            width: 32,
+            anchor: "bottom-right",
+            width: 48,
             minWidth: 29,
             maxHeight: "70%",
-            margin: { right: 1 },
+            margin: { right: 2, bottom: 1 },
             nonCapturing: true,
             visible: (terminalWidth) => visible && terminalWidth >= 100,
           },

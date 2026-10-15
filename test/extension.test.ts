@@ -71,8 +71,10 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   events.get("session_start")?.({}, context);
   assert.equal(options.overlay, true);
   assert.equal(options.overlayOptions?.nonCapturing, true);
-  assert.equal(options.overlayOptions?.anchor, "right-center");
+  assert.equal(options.overlayOptions?.anchor, "bottom-right");
+  assert.equal(options.overlayOptions?.width, 48);
   assert.equal(options.overlayOptions?.minWidth, 29);
+  assert.deepEqual(options.overlayOptions?.margin, { right: 2, bottom: 1 });
   assert.equal(options.overlayOptions?.visible?.(99, 30), false);
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
   assert.equal(statuses.at(-1)?.[1], "1 MCP namespace");
