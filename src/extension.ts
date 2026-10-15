@@ -6,22 +6,34 @@ import {
   buildMcpToolDetails,
   type McpServerView,
 } from "./mcp-view-model.ts";
+import {
+  attachGentleShellRailPanel,
+  type GentleShellRailAttachment,
+} from "./gentle-shell-adapter.ts";
 import { McpSidebar } from "./sidebar.ts";
 import { McpToolDetails } from "./tool-details.ts";
 
 export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let panel: McpSidebar | undefined;
   let handle: OverlayHandle | undefined;
+  let railAttachment: GentleShellRailAttachment | undefined;
   let finishOverlay: (() => void) | undefined;
   let finishDetails: (() => void) | undefined;
   let detailsOpen = false;
   let shuttingDown = false;
   let visible = true;
+  let collapsed = false;
   let activeContext: ExtensionContext | undefined;
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
   let inventoryFingerprint: string | undefined;
 
   const currentServers = (): McpServerView[] => buildMcpServers(pi.getAllTools());
+
+  const syncPresentation = (): void => {
+    const showPanel = visible && !detailsOpen;
+    railAttachment?.setVisible(showPanel);
+    handle?.setHidden(!showPanel);
+  };
 
   const refresh = (): void => {
     const servers = currentServers();
@@ -30,6 +42,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
     inventoryFingerprint = nextFingerprint;
     panel?.setServers(servers);
+    railAttachment?.invalidate();
     const namespaceLabel = servers.length === 1 ? "namespace" : "namespaces";
     activeContext?.ui.setStatus(
       "mcp-sidebar",
@@ -73,7 +86,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
     const tools = buildMcpToolDetails(pi.getAllTools(), server.id);
     detailsOpen = true;
-    handle?.setHidden(true);
+    syncPresentation();
 
     try {
       await ctx.ui.custom<void>(
@@ -99,7 +112,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     } finally {
       detailsOpen = false;
       finishDetails = undefined;
-      if (!shuttingDown) handle?.setHidden(!visible);
+      if (!shuttingDown) syncPresentation();
     }
   };
 
@@ -112,35 +125,62 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
       .custom<void>(
         (tui, theme, _keybindings, done) => {
           finishOverlay = () => done(undefined);
-          panel = new McpSidebar(tui, theme, (namespaceId) => {
-            if (activeContext) void openDetails(namespaceId, activeContext);
-          });
+          panel = new McpSidebar(
+            tui,
+            theme,
+            (namespaceId) => {
+              if (activeContext) void openDetails(namespaceId, activeContext);
+            },
+            (nextCollapsed) => {
+              collapsed = nextCollapsed;
+              railAttachment?.invalidate();
+            },
+          );
+          panel.setCollapsed(collapsed);
+          railAttachment = attachGentleShellRailPanel(tui, panel);
           refresh();
           return panel;
         },
         {
           overlay: true,
           overlayOptions: {
-            anchor: "right-center",
-            width: 32,
+            anchor: "bottom-right",
+            width: 48,
             minWidth: 29,
             maxHeight: "70%",
-            margin: { right: 1 },
+            margin: { right: 2, bottom: 1 },
             nonCapturing: true,
-            visible: (terminalWidth) => visible && terminalWidth >= 100,
+            visible: (terminalWidth) =>
+              railAttachment?.isMounted() !== true && visible && terminalWidth >= 100,
           },
           onHandle: (overlayHandle) => {
             handle = overlayHandle;
+            if (!visible || detailsOpen) handle.setHidden(true);
           },
         },
       )
       .finally(() => {
         stopRefreshTimer();
+        railAttachment?.dispose();
+        railAttachment = undefined;
         panel = undefined;
         handle = undefined;
         finishOverlay = undefined;
       });
     startRefreshTimer();
+  };
+
+  const toggleCollapsed = (ctx: ExtensionContext): void => {
+    if (ctx.mode !== "tui") {
+      ctx.ui.notify("MCP Sidebar collapse requires interactive TUI mode.", "warning");
+      return;
+    }
+
+    mount(ctx);
+    collapsed = !collapsed;
+    panel?.setCollapsed(collapsed);
+    railAttachment?.invalidate();
+    ctx.ui.notify(`MCP Sidebar ${collapsed ? "collapsed" : "expanded"}.`, "info");
   };
 
   pi.registerCommand("mcp-sidebar", {
@@ -153,9 +193,19 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
       mount(ctx);
       visible = !visible;
-      handle?.setHidden(detailsOpen || !visible);
+      syncPresentation();
       ctx.ui.notify(`MCP Sidebar ${visible ? "shown" : "hidden"}.`, "info");
     },
+  });
+
+  pi.registerCommand("mcp-sidebar-collapse", {
+    description: "Collapse or expand the MCP sidebar",
+    handler: async (_args, ctx) => toggleCollapsed(ctx),
+  });
+
+  pi.registerShortcut("ctrl+shift+m", {
+    description: "Collapse or expand the MCP sidebar",
+    handler: (ctx) => toggleCollapsed(ctx),
   });
 
   pi.registerCommand("mcp-tools", {
@@ -189,11 +239,14 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     shuttingDown = false;
     visible = true;
+    collapsed = false;
     if (ctx.mode === "tui" && panel) {
       activeContext = ctx;
       inventoryFingerprint = undefined;
-      handle?.setHidden(false);
+      panel.setCollapsed(false);
+      railAttachment?.invalidate();
       refresh();
+      syncPresentation();
       startRefreshTimer();
       return;
     }
@@ -209,6 +262,8 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     stopRefreshTimer();
     activeContext?.ui.setStatus("mcp-sidebar", undefined);
     finishDetails?.();
+    railAttachment?.dispose();
+    railAttachment = undefined;
     finishOverlay?.();
     activeContext = undefined;
     inventoryFingerprint = undefined;
