@@ -16,7 +16,7 @@ export interface McpServerView {
   id: string;
   label: string;
   toolCount: number;
-  availability: "available";
+  availability: "connected" | "disconnected" | "failed" | "available";
 }
 
 const MCP_PREFIX = "mcp__";
@@ -45,7 +45,7 @@ export function buildMcpServers(tools: readonly ToolDescriptor[]): McpServerView
       id,
       label: id.replaceAll("_", "-"),
       toolCount: names.size,
-      availability: "available" as const,
+      availability: names.size > 0 ? ("connected" as const) : (names.size === 0 ? ("disconnected" as const) : ("failed" as const)),
     }));
 }
 
