@@ -1,3 +1,34 @@
+export interface McpServerStatus {
+  name: string;
+  state: "connecting" | "ready" | "error" | "disabled";
+  tools?: number;
+  error?: { kind: "auth" | "timeout" | "transport" | "config" | "unknown" };
+  since: number;
+}
+
+// Stub provisional hasta que `pi.getMcpStatus()` esté disponible (ver proposals/mcp-status-events.md).
+// Deriva del inventario existente; `ready`/`connecting` son aproximaciones honestas.
+export function getMcpStatusStub(tools: readonly ToolDescriptor[]): McpServerStatus[] {
+  const servers = new Map<string, { count: number; names: string[] }>();
+  for (const tool of tools) {
+    if (tool.exposure === "hidden") continue;
+    const namespace = tool.namespace?.name;
+    if (!namespace?.startsWith("mcp__")) continue;
+    const id = namespace.slice("mcp__".length);
+    if (!id) continue;
+    const entry = servers.get(id) ?? { count: 0, names: [] };
+    entry.count += 1;
+    entry.names.push(tool.name);
+    servers.set(id, entry);
+  }
+  return [...servers.entries()].map(([name, data]) => ({
+    name,
+    state: data.count > 0 ? ("ready" as const) : ("connecting" as const),
+    tools: data.count,
+    since: Date.now(),
+  }));
+}
+
 export interface ToolDescriptor {
   name: string;
   description?: string;
@@ -16,7 +47,7 @@ export interface McpServerView {
   id: string;
   label: string;
   toolCount: number;
-  availability: "connected" | "disconnected" | "failed" | "available";
+  availability: "ready" | "connecting" | "error" | "disabled";
 }
 
 const MCP_PREFIX = "mcp__";
@@ -45,7 +76,7 @@ export function buildMcpServers(tools: readonly ToolDescriptor[]): McpServerView
       id,
       label: id.replaceAll("_", "-"),
       toolCount: names.size,
-      availability: names.size > 0 ? ("connected" as const) : (names.size === 0 ? ("disconnected" as const) : ("failed" as const)),
+      availability: names.size > 0 ? ("ready" as const) : (names.size === 0 ? ("connecting" as const) : ("error" as const)),
     }));
 }
 
