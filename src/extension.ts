@@ -38,12 +38,9 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let collapsed = false;
   let activeContext: ExtensionContext | undefined;
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
-  let inventoryFingerprint: string | undefined;
+  let viewStateFingerprint: string | undefined;
 
   const runtime = pi as ExtensionAPI & McpStatusRuntime;
-  const statusApiAvailable =
-    typeof runtime.getMcpStatus === "function" &&
-    typeof runtime.onMcpStatusChanged === "function";
   let statusSnapshot: McpServerStatus[] | undefined;
   let statusSubscription: { dispose?: () => void } | (() => void) | undefined;
 
@@ -59,9 +56,9 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   const refresh = (): void => {
     const servers = currentServers();
     const nextFingerprint = JSON.stringify({ servers, status: statusSnapshot ?? null });
-    if (nextFingerprint === inventoryFingerprint) return;
+    if (nextFingerprint === viewStateFingerprint) return;
 
-    inventoryFingerprint = nextFingerprint;
+    viewStateFingerprint = nextFingerprint;
     panel?.setServers(servers);
     railAttachment?.invalidate();
     const namespaceLabel = servers.length === 1 ? "namespace" : "namespaces";
@@ -81,15 +78,30 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
   const subscribeStatus = (): void => {
     disposeStatusSubscription();
-    if (!statusApiAvailable) {
+    // Detect at call time: the runtime may gain the API after this extension
+    // loaded, and a frozen `typeof` result from load time would miss it.
+    const onStatus = runtime.onMcpStatusChanged;
+    const readStatus = runtime.getMcpStatus;
+    if (typeof onStatus !== "function" || typeof readStatus !== "function") {
       statusSnapshot = undefined;
       return;
     }
-    statusSnapshot = runtime.getMcpStatus!();
-    statusSubscription = runtime.onMcpStatusChanged!((all) => {
+    // Subscribe before reading: a change landing in the subscribe/read window
+    // would otherwise be missed forever, because the inventory timer never
+    // re-reads the status snapshot.
+    statusSubscription = onStatus((all) => {
       statusSnapshot = all;
       refresh();
     });
+    try {
+      const snapshot: unknown = readStatus();
+      statusSnapshot = Array.isArray(snapshot) ? (snapshot as McpServerStatus[]) : undefined;
+    } catch {
+      // A status API that refuses the snapshot degrades to "no status shown"
+      // instead of breaking session start.
+      statusSnapshot = undefined;
+    }
+    refresh();
   };
 
   const startRefreshTimer = (): void => {
@@ -139,7 +151,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
             server.label,
             tools,
             () => done(undefined),
-            server.availability,
+            () => findServer(server.id)?.availability,
           );
           finishDetails = () => details.close();
           return details;
@@ -169,7 +181,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     if (ctx.mode !== "tui" || panel) return;
 
     activeContext = ctx;
-    inventoryFingerprint = undefined;
+    viewStateFingerprint = undefined;
     void ctx.ui
       .custom<void>(
         (tui, theme, _keybindings, done) => {
@@ -292,7 +304,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     subscribeStatus();
     if (ctx.mode === "tui" && panel) {
       activeContext = ctx;
-      inventoryFingerprint = undefined;
+      viewStateFingerprint = undefined;
       panel.setCollapsed(false);
       railAttachment?.invalidate();
       refresh();
@@ -318,6 +330,6 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     railAttachment = undefined;
     finishOverlay?.();
     activeContext = undefined;
-    inventoryFingerprint = undefined;
+    viewStateFingerprint = undefined;
   });
 }

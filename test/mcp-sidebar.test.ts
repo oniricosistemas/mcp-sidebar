@@ -67,6 +67,27 @@ test("joins runtime MCP status only for namespaces the snapshot reports", () => 
   );
 });
 
+test("ignores malformed runtime status entries instead of trusting the snapshot", () => {
+  const malformed = [
+    null,
+    { name: "context7" },
+    { name: "chrome_devtools", state: "bogus" },
+    { state: "ready" },
+    { name: "context7", state: "ready", since: 1 },
+  ] as unknown as Parameters<typeof buildMcpServers>[1];
+
+  const joined = buildMcpServers(tools, malformed);
+  assert.equal(joined.find((server) => server.id === "context7")?.availability, "ready");
+  assert.equal(
+    "availability" in joined.find((server) => server.id === "chrome_devtools")!,
+    false,
+    "an unknown state string is never rendered as a status",
+  );
+
+  const notAnArray = buildMcpServers(tools, "nope" as unknown as Parameters<typeof buildMcpServers>[1]);
+  assert.ok(notAnArray.every((server) => !("availability" in server)));
+});
+
 test("shows per-namespace status labels only when a snapshot is supplied", () => {
   const withoutStatus = renderSidebarLines(buildMcpServers(tools), 44, (text) => text);
   assert.ok(withoutStatus.some((line) => line.includes("context7") && line.includes("2 tools")));
@@ -316,10 +337,44 @@ test("maps only visible namespace rows to click activation without taking focus"
   assert.equal(sidebar.isCollapsed(), true);
 });
 
+test("colors the server dot from its reported state instead of always success", () => {
+  const tonesIn = (servers: Parameters<typeof renderSidebarLayout>[0]): Set<string> => {
+    const tones = new Set<string>();
+    renderSidebarLayout(servers, 44, (text, tone = "text") => {
+      tones.add(tone);
+      return text;
+    });
+    return tones;
+  };
+
+  const withoutStatus = tonesIn(buildMcpServers(tools));
+  assert.ok(
+    !withoutStatus.has("success"),
+    "with no runtime status the dot must not claim health",
+  );
+
+  const withStatus = tonesIn(
+    buildMcpServers(tools, [
+      { name: "context7", state: "ready", since: 1 },
+      { name: "chrome_devtools", state: "error", error: { kind: "transport" }, since: 1 },
+    ]),
+  );
+  assert.ok(withStatus.has("success"), "ready keeps the success dot");
+  assert.ok(withStatus.has("error"), "error must not be painted as success");
+
+  const connecting = tonesIn(
+    buildMcpServers(tools, [{ name: "context7", state: "connecting", since: 1 }]),
+  );
+  assert.ok(connecting.has("warning"), "connecting reads as a warning, not health");
+});
+
 test("applies semantic theme roles to the sidebar frame, title, body, and selected row", () => {
   const tones: string[] = [];
   const layout = renderSidebarLayout(
-    buildMcpServers(tools),
+    buildMcpServers(tools, [
+      { name: "context7", state: "ready", since: 1 },
+      { name: "chrome_devtools", state: "ready", since: 1 },
+    ]),
     32,
     (text, tone = "text") => {
       tones.push(tone);
