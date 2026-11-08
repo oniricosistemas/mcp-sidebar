@@ -139,7 +139,7 @@ test("renders a width-safe panel without claiming or pointing at transport statu
   assert.ok(lines.every((line) => visibleWidth(line) <= 30));
 });
 
-test("collapses to one actionable header and invalidates stale namespace rows", () => {
+test("collapses to a framed card and invalidates stale namespace rows", () => {
   const collapseChanges: boolean[] = [];
   const opened: string[] = [];
   const sidebar = new McpSidebar(
@@ -172,7 +172,11 @@ test("collapses to one actionable header and invalidates stale namespace rows", 
   }), undefined);
 
   const collapsed = sidebar.render(48);
-  assert.equal(collapsed.length, 1);
+  assert.equal(collapsed.length, 2, "the collapsed card matches the sibling rail cards");
+  assert.ok(collapsed[0]?.startsWith("╭─ "));
+  assert.ok(collapsed[0]?.endsWith("╮"));
+  assert.ok(collapsed[1]?.startsWith("╰"));
+  assert.ok(collapsed[1]?.endsWith("╯"));
   assert.ok(collapsed[0]?.includes("MCP servers"));
   assert.ok(collapsed[0]?.includes("▸ Expand"));
   assert.ok(collapsed[0]?.includes("2 namespaces"));
@@ -219,10 +223,13 @@ test("keeps collapse disclosure readable at the minimum renderer width", () => {
 
   assert.ok(expanded.lines.every((line) => visibleWidth(line) <= 20));
   assert.ok(expanded.lines[0]?.includes("▾ Collapse"));
-  assert.equal(collapsed.lines.length, 1);
+  assert.equal(collapsed.lines.length, 2);
+  assert.ok(collapsed.lines[0]?.startsWith("╭─ "));
   assert.ok(collapsed.lines[0]?.includes("▸ Expand"));
   assert.ok(collapsed.lines[0]?.includes("2 ns"));
+  assert.ok(collapsed.lines[1]?.endsWith("╯"));
   assert.ok(collapsed.lines.every((line) => visibleWidth(line) <= 20));
+  assert.deepEqual(collapsed.collapseRows, [true, true], "every card row toggles");
 });
 
 test("preserves tool counts when a namespace label is wider than its row", () => {

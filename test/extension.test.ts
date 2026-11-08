@@ -99,7 +99,7 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   );
 
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
-  assert.equal(component?.render(32).length, 1);
+  assert.equal(component?.render(32).length, 2);
   assert.ok(component?.render(32)[0]?.includes("▸ Expand"));
   await shortcuts.get("ctrl+shift+m")?.handler(context);
   assert.ok((component?.render(32).length ?? 0) > 1);
@@ -117,13 +117,13 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
     alt: false,
     ctrl: false,
   });
-  assert.equal(component?.render(32).length, 1);
+  assert.equal(component?.render(32).length, 2);
 
   await commands.get("mcp-sidebar")?.handler("", context);
   assert.equal(options.overlayOptions?.visible?.(100, 30), false);
   await commands.get("mcp-sidebar")?.handler("", context);
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
-  assert.equal(component?.render(32).length, 1, "hide/show must preserve collapse state");
+  assert.equal(component?.render(32).length, 2, "hide/show must preserve collapse state");
   assert.deepEqual(hidden, [true, false]);
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
 
@@ -389,7 +389,7 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   const expandedHeight = wrapper.render(48).length;
   const expandedDigest = (wrapper as Component & { digest?: () => string }).digest?.();
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
-  assert.equal(wrapper.render(48).length, 3, "Status plus one collapsed MCP row");
+  assert.equal(wrapper.render(48).length, 4, "Status plus the collapsed MCP card");
   assert.notEqual((wrapper as Component & { digest?: () => string }).digest?.(), expandedDigest);
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
   assert.equal(wrapper.render(48).length, expandedHeight);
@@ -405,7 +405,7 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   assert.deepEqual(wrapper.render(48), ["Status", "Project demo"]);
   components[1]?.handleInput?.("\u001b");
   await detailsOpen;
-  assert.equal(wrapper.render(48).length, 3, "details restore the collapsed panel");
+  assert.equal(wrapper.render(48).length, 4, "details restore the collapsed panel");
 
   events.get("session_start")?.({}, context);
   assert.equal(wrapper.render(48).length, expandedHeight, "session start resets expanded state");

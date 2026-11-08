@@ -76,7 +76,7 @@ the status API and its compatibility notes in
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
 - **Non-blocking:** neither the native rail participant nor the overlay fallback captures editor focus.
 - **Responsive:** Gentle Shell stacks participating rail panels by rendered height and hides them together at narrow widths; standalone Pi retains the overlay.
-- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to one summary row.
+- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to a two-line framed card that matches the other rail panels.
 - **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
 - **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
 - **Honest:** connection status comes only from the runtime's sanitized snapshot; inventory never implies health, and builds without the status API show no status at all.

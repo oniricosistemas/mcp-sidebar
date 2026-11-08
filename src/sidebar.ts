@@ -53,16 +53,36 @@ export function renderSidebarLayout(
   const safeWidth = Math.max(20, width);
   const namespaceLabel = `${servers.length} ${servers.length === 1 ? "namespace" : "namespaces"}`;
   if (collapsed) {
-    const leftLabel = safeWidth >= 34 ? "MCP servers ▸ Expand" : "MCP ▸ Expand";
-    const rightLabel = safeWidth >= 48
-      ? `${namespaceLabel} · ctrl+shift+m`
-      : safeWidth >= 29
-        ? namespaceLabel
-        : `${servers.length} ns`;
+    // Same rounded card shape as the sibling rail panels (pr-flow, flema-engram):
+    // a title rule carrying the summary plus a closing rule. The ladder keeps the
+    // richest label pair that still leaves at least one dash inside the frame.
+    const shortCount = `${servers.length} ns`;
+    const candidates: [string, string][] = [
+      ["MCP servers ▸ Expand", `${namespaceLabel} · ctrl+shift+m`],
+      ["MCP servers ▸ Expand", namespaceLabel],
+      ["MCP ▸ Expand", namespaceLabel],
+      ["MCP ▸ Expand", shortCount],
+      ["▸ Expand", shortCount],
+      ["▸ Expand", ""],
+    ];
+    const chosen = candidates.find(
+      ([left, right]) =>
+        safeWidth - visibleWidth(left) - visibleWidth(right) - (right ? 6 : 5) >= 1,
+    );
+    const [leftLabel, rightLabel] = chosen ?? ["▸ Expand", ""];
+    const dashes = Math.max(
+      1,
+      safeWidth - visibleWidth(leftLabel) - visibleWidth(rightLabel) - (rightLabel ? 6 : 5),
+    );
+    const top = `${paint("╭─ ", "border")}${paint(leftLabel, "title")} ${paint(
+      "─".repeat(dashes),
+      "border",
+    )}${rightLabel ? ` ${paint(rightLabel, "dim")}` : ""}${paint("╮", "border")}`;
+    const bottom = paint(`╰${"─".repeat(Math.max(0, safeWidth - 2))}╯`, "border");
     return {
-      lines: [columns(paint(leftLabel, "title"), paint(rightLabel, "dim"), safeWidth)],
-      rowIds: [undefined],
-      collapseRows: [true],
+      lines: [top, bottom],
+      rowIds: [undefined, undefined],
+      collapseRows: [true, true],
     };
   }
 
