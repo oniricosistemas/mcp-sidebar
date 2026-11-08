@@ -97,3 +97,12 @@ pi.onMcpStatusChanged(cb: (all: McpServerStatus[]) => void): Disposable;  // eve
 Aceptado. La propuesta se adopta como la API de estado sanitizado para `mcp-sidebar`. Se implementará en `mcp-view-model.ts` con los estados `connecting | ready | error | disabled`, correlados por namespace (`mcp__<name>`), sin exponer datos sensibles ni errores crudos. El archivo `src/mcp-view-model.ts` ya deriva `connected`/`disconnected` como paso inicial; la integración completa (`getMcpStatus` / evento) queda pendiente del runtime (`pi`).
 
 Actualización (2026-10-31): se agregó `getMcpStatusStub()` en `mcp-view-model.ts` como implementación provisional que deriva `McpServerStatus[]` del inventario existente (`pi.getAllTools()`), con los estados `ready`/`connecting` como aproximaciones honestas. Queda pendiente la integración con la API real (`pi.getMcpStatus()` y `pi.onMcpStatusChanged()`) una vez esté disponible en el runtime.
+
+Actualización (2026-11-07): la integración con la API real quedó implementada en `src/extension.ts`
+mediante feature detection de ambos métodos, suscripción por sesión (dispose en `session_shutdown`)
+y unión por namespace en `buildMcpServers(tools, status?)`. `getMcpStatusStub()` se eliminó: sin la
+API el panel no muestra ningún estado (ni etiquetas por servidor ni la fila `connection status: /mcp`);
+con la API muestra los estados reales `connecting | ready | error | disabled` por namespace y en el
+diálogo de detalles. La API sigue sin estar en ningún Pi publicado (ni 1.4.0 ni 1.5.0) ni en
+`gentle-pi@4.7.0`: gentle-shell la documenta en `docs/mcp-status.md` (PR #2734) para builds de Pi que
+la incluyan, y esa documentación es la referencia de contrato de esta integración.

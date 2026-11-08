@@ -77,11 +77,10 @@ export function renderSidebarLayout(
   const lines = [
     top,
     row(paint("tools registered", "dim"), safeWidth, paint),
-    row(paint("connection status: /mcp", "dim"), safeWidth, paint),
     row("", safeWidth, paint),
   ];
-  const rowIds: (string | undefined)[] = [undefined, undefined, undefined, undefined];
-  const collapseRows = [true, false, false, false];
+  const rowIds: (string | undefined)[] = [undefined, undefined, undefined];
+  const collapseRows = [true, false, false];
 
   if (servers.length === 0) {
     lines.push(row(paint("No registered MCP tools yet", "dim"), safeWidth, paint));
@@ -102,7 +101,8 @@ export function renderSidebarLayout(
     }
     for (const server of visibleServers) {
       const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
-      const left = `${paint("●", "success")} ${paint(server.label, "text")}`;
+      const statusLabel = server.availability ? ` · ${String(server.availability)}` : "";
+      const left = `${paint("●", "success")} ${paint(server.label, "text")}${paint(statusLabel, "dim")}`;
       lines.push(
         row(
           columns(left, paint(toolLabel, "dim"), innerWidth),

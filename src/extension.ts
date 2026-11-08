@@ -4,6 +4,7 @@ import type { OverlayHandle } from "@earendil-works/pi-tui";
 import {
   buildMcpServers,
   buildMcpToolDetails,
+  type McpServerStatus,
   type McpServerView,
 } from "./mcp-view-model.ts";
 import {
@@ -12,6 +13,18 @@ import {
 } from "./gentle-shell-adapter.ts";
 import { McpSidebar } from "./sidebar.ts";
 import { McpToolDetails } from "./tool-details.ts";
+
+/**
+ * Pi builds that ship the sanitized MCP status API (documented in gentle-shell's
+ * `docs/mcp-status.md`) expose both methods. Everything else — including every
+ * currently published Pi — gets no MCP status display at all.
+ */
+interface McpStatusRuntime {
+  getMcpStatus?: () => McpServerStatus[];
+  onMcpStatusChanged?: (
+    listener: (all: McpServerStatus[]) => void,
+  ) => { dispose?: () => void } | (() => void);
+}
 
 export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let panel: McpSidebar | undefined;
@@ -27,7 +40,15 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
   let inventoryFingerprint: string | undefined;
 
-  const currentServers = (): McpServerView[] => buildMcpServers(pi.getAllTools());
+  const runtime = pi as ExtensionAPI & McpStatusRuntime;
+  const statusApiAvailable =
+    typeof runtime.getMcpStatus === "function" &&
+    typeof runtime.onMcpStatusChanged === "function";
+  let statusSnapshot: McpServerStatus[] | undefined;
+  let statusSubscription: { dispose?: () => void } | (() => void) | undefined;
+
+  const currentServers = (): McpServerView[] =>
+    buildMcpServers(pi.getAllTools(), statusSnapshot);
 
   const syncPresentation = (): void => {
     const showPanel = visible && !detailsOpen;
@@ -37,7 +58,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
   const refresh = (): void => {
     const servers = currentServers();
-    const nextFingerprint = JSON.stringify(servers);
+    const nextFingerprint = JSON.stringify({ servers, status: statusSnapshot ?? null });
     if (nextFingerprint === inventoryFingerprint) return;
 
     inventoryFingerprint = nextFingerprint;
@@ -48,6 +69,27 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
       "mcp-sidebar",
       `${servers.length} MCP ${namespaceLabel}${servers.length === 0 ? " visible" : ""}`,
     );
+  };
+
+  const disposeStatusSubscription = (): void => {
+    const subscription = statusSubscription;
+    statusSubscription = undefined;
+    if (!subscription) return;
+    if (typeof subscription === "function") subscription();
+    else subscription.dispose?.();
+  };
+
+  const subscribeStatus = (): void => {
+    disposeStatusSubscription();
+    if (!statusApiAvailable) {
+      statusSnapshot = undefined;
+      return;
+    }
+    statusSnapshot = runtime.getMcpStatus!();
+    statusSubscription = runtime.onMcpStatusChanged!((all) => {
+      statusSnapshot = all;
+      refresh();
+    });
   };
 
   const startRefreshTimer = (): void => {
@@ -91,7 +133,14 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     try {
       await ctx.ui.custom<void>(
         (tui, theme, _keybindings, done) => {
-          const details = new McpToolDetails(tui, theme, server.label, tools, () => done(undefined));
+          const details = new McpToolDetails(
+            tui,
+            theme,
+            server.label,
+            tools,
+            () => done(undefined),
+            server.availability,
+          );
           finishDetails = () => details.close();
           return details;
         },
@@ -240,6 +289,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     shuttingDown = false;
     visible = true;
     collapsed = false;
+    subscribeStatus();
     if (ctx.mode === "tui" && panel) {
       activeContext = ctx;
       inventoryFingerprint = undefined;
@@ -260,6 +310,8 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   pi.on("session_shutdown", () => {
     shuttingDown = true;
     stopRefreshTimer();
+    disposeStatusSubscription();
+    statusSnapshot = undefined;
     activeContext?.ui.setStatus("mcp-sidebar", undefined);
     finishDetails?.();
     railAttachment?.dispose();

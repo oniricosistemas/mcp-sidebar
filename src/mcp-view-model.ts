@@ -6,29 +6,6 @@ export interface McpServerStatus {
   since: number;
 }
 
-// Stub provisional hasta que `pi.getMcpStatus()` esté disponible (ver proposals/mcp-status-events.md).
-// Deriva del inventario existente; `ready`/`connecting` son aproximaciones honestas.
-export function getMcpStatusStub(tools: readonly ToolDescriptor[]): McpServerStatus[] {
-  const servers = new Map<string, { count: number; names: string[] }>();
-  for (const tool of tools) {
-    if (tool.exposure === "hidden") continue;
-    const namespace = tool.namespace?.name;
-    if (!namespace?.startsWith("mcp__")) continue;
-    const id = namespace.slice("mcp__".length);
-    if (!id) continue;
-    const entry = servers.get(id) ?? { count: 0, names: [] };
-    entry.count += 1;
-    entry.names.push(tool.name);
-    servers.set(id, entry);
-  }
-  return [...servers.entries()].map(([name, data]) => ({
-    name,
-    state: data.count > 0 ? ("ready" as const) : ("connecting" as const),
-    tools: data.count,
-    since: Date.now(),
-  }));
-}
-
 export interface ToolDescriptor {
   name: string;
   description?: string;
@@ -47,13 +24,17 @@ export interface McpServerView {
   id: string;
   label: string;
   toolCount: number;
-  availability: "ready" | "connecting" | "error" | "disabled";
+  /** Present only when the runtime's sanitized snapshot reports this namespace. */
+  availability?: McpServerStatus["state"];
 }
 
 const MCP_PREFIX = "mcp__";
 const MIN_SIDEBAR_TERMINAL_WIDTH = 100;
 
-export function buildMcpServers(tools: readonly ToolDescriptor[]): McpServerView[] {
+export function buildMcpServers(
+  tools: readonly ToolDescriptor[],
+  status?: readonly McpServerStatus[],
+): McpServerView[] {
   const servers = new Map<string, Set<string>>();
 
   for (const tool of tools) {
@@ -70,14 +51,18 @@ export function buildMcpServers(tools: readonly ToolDescriptor[]): McpServerView
     servers.set(id, names);
   }
 
+  const states = new Map(status?.map((entry) => [entry.name, entry.state]));
   return [...servers.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([id, names]) => ({
-      id,
-      label: id.replaceAll("_", "-"),
-      toolCount: names.size,
-      availability: names.size > 0 ? ("ready" as const) : (names.size === 0 ? ("connecting" as const) : ("error" as const)),
-    }));
+    .map(([id, names]) => {
+      const state = states.get(id);
+      return {
+        id,
+        label: id.replaceAll("_", "-"),
+        toolCount: names.size,
+        ...(state ? { availability: state } : {}),
+      };
+    });
 }
 
 export function buildMcpToolDetails(
