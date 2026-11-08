@@ -80,8 +80,10 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     disposeStatusSubscription();
     // Detect at call time: the runtime may gain the API after this extension
     // loaded, and a frozen `typeof` result from load time would miss it.
-    const onStatus = runtime.onMcpStatusChanged;
-    const readStatus = runtime.getMcpStatus;
+    // `bind` keeps the runtime as `this` when the host implements the methods
+    // as host methods rather than standalone functions.
+    const onStatus = runtime.onMcpStatusChanged?.bind(runtime);
+    const readStatus = runtime.getMcpStatus?.bind(runtime);
     if (typeof onStatus !== "function" || typeof readStatus !== "function") {
       statusSnapshot = undefined;
       return;

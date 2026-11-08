@@ -652,6 +652,7 @@ test("survives a status API that throws instead of breaking the session", async 
   t.after(() => events.get("session_shutdown")?.());
   const components: Component[] = [];
   let reads = 0;
+  let disposed = 0;
   const tools = [{ name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" }];
   const theme = {
     fg: (_tone: string, text: string) => text,
@@ -686,7 +687,11 @@ test("survives a status API that throws instead of breaking the session", async 
       reads += 1;
       throw new Error("runtime refused the snapshot");
     },
-    onMcpStatusChanged: () => ({ dispose: () => {} }),
+    onMcpStatusChanged: () => ({
+      dispose: () => {
+        disposed += 1;
+      },
+    }),
   } as any);
 
   events.get("session_start")?.({}, context);
@@ -699,7 +704,54 @@ test("survives a status API that throws instead of breaking the session", async 
   );
 
   events.get("session_shutdown")?.();
-  assert.ok(true);
+  assert.equal(disposed, 1, "the status subscription is released on session shutdown");
+});
+
+test("keeps status API methods bound to their runtime host", async (t) => {
+  const events = new Map<string, (...args: any[]) => void>();
+  t.after(() => events.get("session_shutdown")?.());
+  const components: Component[] = [];
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (factory: (...args: any[]) => Component) => {
+        components.push(
+          factory(
+            { terminal: { rows: 24, columns: 120 }, requestRender: () => {} },
+            { fg: (_tone: string, text: string) => text, bold: (text: string) => text, style: (text: string) => text },
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+  const runtime = {
+    registerCommand: () => {},
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{ name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" }],
+    snapshot: [{ name: "demo", state: "ready", since: 1 }] as McpServerStatus[],
+    // Both methods reach their host through `this`; a detached call throws.
+    getMcpStatus(this: { snapshot: McpServerStatus[] }): McpServerStatus[] {
+      return this.snapshot;
+    },
+    onMcpStatusChanged(this: unknown, _listener: (all: McpServerStatus[]) => void) {
+      if (typeof this !== "object" || this === null) throw new TypeError("detached host");
+      return { dispose: () => {} };
+    },
+  };
+
+  extension(runtime as any);
+  events.get("session_start")?.({}, context);
+  assert.ok(
+    (components[0]?.render(60) ?? []).some((line) => line.includes("· ready")),
+    "status methods must run with their runtime as `this`",
+  );
+  events.get("session_shutdown")?.();
 });
 
 test("detects a status API that appears after the extension loaded", async (t) => {
