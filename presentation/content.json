@@ -1,0 +1,265 @@
+{
+  "meta": {
+    "language": "es",
+    "title": "MCP Sidebar para Gentle Shell y Pi",
+    "author": "Lucas M. Sastre",
+    "ecosystem": "Gentle Shell / Pi",
+    "repository": "https://github.com/oniricosistemas/mcp-sidebar",
+    "audiences": [
+      "Usuarios de Gentle Shell/Pi",
+      "Desarrolladores de agentes",
+      "Público técnico general"
+    ],
+    "goals": [
+      "Mostrar el proceso de ingeniería",
+      "Presentar MCP Sidebar como producto",
+      "Posicionamiento personal/profesional"
+    ]
+  },
+  "visual": {
+    "direction": "MCP Sidebar sobre paleta Gentleman-Cute: terminales, raíles, paneles y detalles de tools",
+    "colors": {
+      "background": "#060407",
+      "panel": "#100A0F",
+      "user": "#2A1523",
+      "border": "#563040",
+      "borderSubtle": "#2A1720",
+      "text": "#F6EFF3",
+      "muted": "#A78E9B",
+      "dim": "#76616B",
+      "accent": "#F095C8",
+      "gold": "#E0C27A",
+      "mint": "#B4E7C7",
+      "blue": "#A9C7EE",
+      "error": "#FF718F"
+    }
+  },
+  "slides": [
+    {
+      "id": "cover",
+      "kicker": "MCP Sidebar · Gentle Shell / Pi",
+      "title": "MCP Sidebar: el panel que no sabías que necesitabas",
+      "purpose": "Abrir con el resultado: una vista persistente de servers y tools MCP, temática y navegable, sin tocar el host.",
+      "layout": "cover",
+      "points": [
+        "Una idea simple: ver tus servers MCP sin abrir comandos, leer sus tools sin salir del flujo y conservar el foco del editor.",
+        "Diseñado, construido, verificado y entregado paso a paso — la historia de ingeniería completa está en estas slides.",
+        "Lucas M. Sastre · para la comunidad de Gentle Shell y Pi."
+      ]
+    },
+    {
+      "id": "problem",
+      "kicker": "El problema",
+      "title": "MCP estaba conectado, pero no se veía",
+      "purpose": "Plantea el dolor: `/mcp` existía, pero el descubrimiento de tools era lento y el contexto de MCP desaparecía al trabajar.",
+      "layout": "grid-2",
+      "points": [
+        "`/mcp` es autoritativo para conexiones y auth, pero no es una vista: cada consulta interrumpe el flujo de trabajo.",
+        "Las tools registradas viven en un menú: ver descripciones y capacidades exige entrar y salir del contexto.",
+        "Sin una vista persistente, no hay memoria visual de qué hay disponible en esta sesión.",
+        "El editor conserva el foco — cualquier solución debía ser pasiva y no capturante."
+      ],
+      "evidence": [
+        "Observado en sesiones reales de Gentle Shell con hasta 8 namespaces MCP activos.",
+        "Restricción declarada desde el inicio: `/mcp` sigue siendo la interfaz autoritativa de conexión y autenticación."
+      ]
+    },
+    {
+      "id": "constraints",
+      "kicker": "Las reglas del juego",
+      "title": "No tocar el host, no robar el foco, no mentir",
+      "purpose": "Establece las restricciones de diseño que explican cada decisión posterior: pasividad, honestidad de estado y host intocado.",
+      "layout": "grid-3",
+      "points": [
+        "Pasivo por contrato: `nonCapturing: true` — nunca secuestrar el foco del editor.",
+        "Honesto por diseño: decir `tools registered` y delegar el estado de conexión a `/mcp`. Nunca inventar un estado conectado.",
+        "Compatibilidad sobre invasión: el sidebar se integra con el rail nativo mediante feature detection — Gentle Shell queda intacto."
+      ],
+      "evidence": [
+        "El copy de estado se corrigió tras una revisión: `status unknown` se reemplazó por `tools registered` + `connection status: /mcp`.",
+        "Ninguna parte de Gentle Shell fue modificada; la integración vive 100% en mcp-sidebar."
+      ]
+    },
+    {
+      "id": "evolution",
+      "kicker": "La evolución",
+      "title": "De overlay flotante a rail nativo",
+      "purpose": "Narrar el recorrido: overlay inicial alineado con Status, luego integración nativa con stacking real.",
+      "layout": "split",
+      "points": [
+        "Primera versión: overlay pasivo abajo a la derecha, alineado a las medidas del rail `Status` de Gentle Shell.",
+        "El feedback del usuario fue claro: el espacio entre paneles era ruido visual — MCP debía fluir dentro del rail.",
+        "La solución: un adapter feature-detected que compone el footer existente por identidad y apila paneles por altura real.",
+        "Falla segura: si el rail desaparece o cambia de dueño, el overlay standby retoma sin romper nada."
+      ],
+      "evidence": [
+        "Overlay inicial: 48 columnas, ancla bottom-right, margen derecho 2 — medidas tomadas del rail `Status` real.",
+        "El adapter detecta `Symbol.for(\"gentle-pi.experimental-sidebar.state\")` y compone el footer por identidad, restaurándolo solo si sigue siendo dueño."
+      ],
+      "asset": "assets/presentation/evolution.png"
+    },
+    {
+      "id": "tool-details",
+      "kicker": "Interacción",
+      "title": "Un click en el namespace, toda la info de sus tools",
+      "purpose": "Mostrar el drill-down: click o comando abren un modal con nombres y descripciones reales de las tools.",
+      "layout": "split",
+      "points": [
+        "Click en una fila visible del sidebar abre el detalle de ese namespace — sin robar el foco.",
+        "En modo regular o sin mouse: `/mcp-tools` lista los namespaces, `/mcp-tools context7` abre uno directo.",
+        "El modal es scrolleable, temático y acotado: `↑` `↓`, `Page Up` `Page Down`, `Escape` o `Ctrl+C` para volver.",
+        "Las descripciones vienen de la tool real registrada — sin inventar ni resumir de más."
+      ],
+      "evidence": [
+        "Verificado en vivo con Gentle Shell 140×40: click real (SGR) sobre `context7` abre sus 2 tools con descripciones completas.",
+        "Guardas de ciclo de vida: un solo modal activo, sidebar oculto durante el detalle y restaurado al cerrar."
+      ],
+      "asset": "assets/presentation/tool-details.png"
+    },
+    {
+      "id": "theme",
+      "kicker": "Identidad visual",
+      "title": "El sidebar habla el idioma de tu theme",
+      "purpose": "Resaltar el uso de tokens semánticos del theme activo de Pi, evaluados en cada render.",
+      "layout": "grid-2",
+      "points": [
+        "Frame, títulos, nombres, contadores, selección y modal usan colores semánticos del theme seleccionado.",
+        "El theme de Pi 1.2 es un Proxy vivo: se evalúa en cada render, así el cambio de tema se refleja al instante.",
+        "Sin colores congelados en strings: cada frame nuevo consulta el theme actual."
+      ],
+      "evidence": [
+        "Prueba independiente de cambio de theme en tiempo de render: los roles semánticos se recomputan sin remount.",
+        "Cobertura unitaria: roles semánticos aplicados a frame, título, cuerpo y selección del sidebar."
+      ]
+    },
+    {
+      "id": "native-rail",
+      "kicker": "El rail compartido",
+      "title": "Status, MCP y lo que venga: un solo flujo vertical",
+      "purpose": "Explicar el stacking por altura real, el mouse routing y la composición segura del footer compartido.",
+      "layout": "split",
+      "points": [
+        "Status queda arriba, MCP debajo, y cualquier panel participante futuro se apila — todo medido por altura renderizada.",
+        "El mouse routing usa offsets reales por panel: el click siempre abre el namespace correcto, aunque `Status` cambie de altura.",
+        "El footer compartido se restaura por identidad al salir, sin pisar a un dueño más nuevo.",
+        "Si el host deja de controlar el layout, MCP desaparece junto con Status — no queda un overlay huérfano."
+      ],
+      "evidence": [
+        "Prueba real 140→120→140: `Status` y MCP desaparecen juntos y se restauran juntos.",
+        "Los digests de participantes invalidan las cachés de altura de Gentle Shell: nada queda stale."
+      ],
+      "asset": "assets/presentation/native-rail.png"
+    },
+    {
+      "id": "collapse-responsive",
+      "kicker": "Detalle de producto",
+      "title": "Colapsable como Todo, invisible como debe ser",
+      "purpose": "Mostrar el collapse estilo Todo y la coherencia responsive del panel.",
+      "layout": "split",
+      "points": [
+        "Tres formas de colapsar: click en el header, `/mcp-sidebar-collapse` y `Ctrl+Shift+M` donde el terminal lo distinga.",
+        "Colapsado queda una sola fila con estado visible: `MCP servers ▸ Expand 8 namespaces`.",
+        "El estado persiste entre hide/show, refresh, detalles y transiciones rail ↔ overlay.",
+        "Responsive sin sorpresas: cuando el terminal no da más, MCP se esconde con Status y vuelve con él."
+      ],
+      "evidence": [
+        "Verificación en vivo 140→120→140: el estado de collapse sobrevive a los cambios de presentación y resize.",
+        "Atajos y comandos probados en Gentle Shell real, incluyendo el click primario en el header."
+      ],
+      "asset": "assets/presentation/collapse-responsive.png"
+    },
+    {
+      "id": "architecture",
+      "kicker": "Arquitectura",
+      "title": "Compatibilidad por detección, nunca por invasión",
+      "purpose": "Contar la arquitectura del adapter: feature detection, composición por identidad, fallback y honestidad.",
+      "layout": "grid-3",
+      "points": [
+        "Feature detection sobre el estado de rail del host: si no existe o es incompatible, el overlay pasivo toma el relevo.",
+        "Composición por identidad: el footer original se guarda y se restaura solo si el adapter sigue siendo el dueño.",
+        "Contratos separados: `isMounted()` (el wrapper está montado) vs `isActive()` (el host controla el layout) — esta distinción resolvió el bug de visibilidad angosta."
+      ],
+      "evidence": [
+        "El bug más instructivo: el overlay reaparecía a 120 columnas porque `isActive()` mezclaba montaje y control de layout.",
+        "Verificación independiente: S1–S7 PASS y 6 escenarios de fallback confirmados contra baseline."
+      ]
+    },
+    {
+      "id": "verification",
+      "kicker": "Disciplina de ingeniería",
+      "title": "Test-first, evidencia real y verificación independiente",
+      "purpose": "Mostrar la disciplina: RED/GREEN por cada regla, pruebas TUI en vivo y verificador independiente de alto riesgo.",
+      "layout": "grid-4",
+      "points": [
+        "Test-first por contrato: cada regla empieza con un RED que reproduce el bug o la ausencia.",
+        "Pruebas reales en Gentle Shell: clicks SGR, atajos de teclado, resize 140→120→140, transiciones de theme.",
+        "Verificación independiente de alto riesgo: un segundo agente audita S1–S7 y los escenarios de fallback.",
+        "Cierre honesto: `pnpm test`, `pnpm typecheck`, `git diff --check` y `pnpm pack --dry-run` en cada unidad."
+      ],
+      "evidence": [
+        "22/22 tests finales, TypeScript y diff check pasando en el merge.",
+        "El verificador independiente encontró 2 blockers reales en el adapter — corregidos con regresiones antes de cerrar.",
+        "Advisory del verificador corregido: el título expandido excedía el límite de 20 columnas del renderer."
+      ]
+    },
+    {
+      "id": "delivery-chain",
+      "kicker": "Entrega",
+      "title": "1.670 líneas, 8 PRs y una revisión amigable",
+      "purpose": "Exponer el proceso de entrega: división por presupuesto de revisión y cadena de PRs con trazabilidad.",
+      "layout": "bars",
+      "chart": {
+        "label": "Líneas cambiadas por slice · presupuesto de revisión: 400",
+        "max": 400,
+        "bars": [
+          { "label": "PR #7 primitivas", "value": 382 },
+          { "label": "PR #8 detalle", "value": 176 },
+          { "label": "PR #9 interacciones", "value": 258 },
+          { "label": "PR #10 alineación", "value": 10 },
+          { "label": "PR #11 rail core", "value": 390 },
+          { "label": "PR #12 integración", "value": 176 },
+          { "label": "PR #13 collapse", "value": 273 },
+          { "label": "PR #14 visibilidad", "value": 37 }
+        ]
+      },
+      "points": [
+        "El diff completo medía 1.670 líneas — por encima del presupuesto sano de revisión.",
+        "La respuesta: una cadena de PRs con tracker, ocho slices coherentes y máx. 390 líneas por slice.",
+        "Cada PR: issue aprobado enlazado, una etiqueta `type:*`, tests junto al comportamiento y presupuesto declarado.",
+        "Merge en orden inverso, de la hoja a la raíz — cada slice revisado antes de que el siguiente existiera."
+      ],
+      "evidence": [
+        "Diff total de 1.670 líneas, resuelto en ocho slices children con un máximo de 390 líneas por slice.",
+        "PRs #7 a #14 + tracker #6, todos MERGED con el árbol final verificado contra el source."
+      ]
+    },
+    {
+      "id": "result",
+      "kicker": "Resultado",
+      "title": "Merged, verificado y listo para usar",
+      "purpose": "Cerrar el arco del producto: qué quedó hecho, dónde vive y qué está probado.",
+      "layout": "grid-2",
+      "points": [
+        "Un paquete Pi: sidebar pasivo + rail nativo + detalles interactivos + collapse + theme + responsive.",
+        "Funciona en Gentle Shell completo y degrada elegantemente en Pi standalone.",
+        "Todo el ciclo documentado: specs, logs de decisión, evidencia de verificación y PRs revisables."
+      ],
+      "evidence": [
+        "PR #6 (tracker) merged en `main` como `81ef2eb` — 9 PRs en total, todos MERGED.",
+        "22/22 tests, typecheck, diff check y package dry-run: verdes en el merge final."
+      ]
+    },
+    {
+      "id": "cta",
+      "kicker": "Próximo paso",
+      "title": "Probalo, leélo y decime qué ves",
+      "purpose": "CTA concreto: repo, instalación y contacto — con posicionamiento personal y del ecosistema.",
+      "layout": "cover",
+      "points": [
+        "Código, specs y evidencia: github.com/oniricosistemas/mcp-sidebar",
+        "¿Usás Gentle Shell o Pi? Probalo y contame qué mejorarías — el roadmap incluye upstream proposals para slots nativos y eventos de estado MCP.",
+        "Lucas M. Sastre · construyendo herramientas para la comunidad de agentes. Hablemos."
+      ]
+    }
+  ]
+}
