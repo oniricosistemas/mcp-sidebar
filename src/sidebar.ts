@@ -69,17 +69,6 @@ function columns(left: string, right: string, width: number): string {
   return truncateToWidth(`${clippedLeft}${" ".repeat(gap)}${clippedRight}`, width);
 }
 
-function panelRow(
-  left: string,
-  right: string,
-  width: number,
-  paint: SidebarPaint,
-  selected = false,
-): string {
-  const content = columns(`  ${left}`, right, width);
-  return selected ? paint(content, "selected") : content;
-}
-
 export function renderSidebarLayout(
   servers: readonly McpServerView[],
   width: number,
@@ -92,57 +81,19 @@ export function renderSidebarLayout(
   const namespaceLabel = `${servers.length} ${servers.length === 1 ? "namespace" : "namespaces"}`;
 
   if (surface === "panel") {
-    const header = columns(
-      `${paint(collapsed ? "▸" : "▾", "dim")} ${paint("MCP SERVERS", "title")}`,
-      paint(namespaceLabel, "dim"),
+    const card = renderSidebarLayout(
+      servers,
       safeWidth,
+      paint,
+      selectedId,
+      collapsed,
+      "card",
     );
-    const lines = [header];
-    const rowIds: (string | undefined)[] = [undefined];
-    const collapseRows = [true];
-    if (collapsed) return { lines, rowIds, collapseRows };
-
-    lines.push(panelRow(paint("tools registered", "dim"), "", safeWidth, paint));
-    rowIds.push(undefined);
-    collapseRows.push(false);
-
-    if (servers.length === 0) {
-      lines.push(panelRow(paint("No registered MCP tools yet", "dim"), "", safeWidth, paint));
-      rowIds.push(undefined);
-      collapseRows.push(false);
-    } else {
-      const visibleServers = servers.slice(0, MAX_VISIBLE_SERVERS);
-      if (visibleServers.length < servers.length) {
-        lines.push(
-          panelRow(
-            paint(`Showing ${visibleServers.length} of ${servers.length} · /mcp`, "dim"),
-            "",
-            safeWidth,
-            paint,
-          ),
-        );
-        rowIds.push(undefined);
-        collapseRows.push(false);
-      }
-      for (const server of visibleServers) {
-        const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
-        const statusLabel = server.availability ? ` · ${String(server.availability)}` : "";
-        const dotTone = server.availability ? AVAILABILITY_DOT_TONE[server.availability] : "dim";
-        const left = `${paint("●", dotTone)} ${paint(server.label, "text")}${paint(statusLabel, "dim")}`;
-        lines.push(
-          panelRow(
-            left,
-            paint(toolLabel, "dim"),
-            safeWidth,
-            paint,
-            server.id === selectedId,
-          ),
-        );
-        rowIds.push(server.id);
-        collapseRows.push(false);
-      }
-    }
-    return { lines, rowIds, collapseRows };
+    return {
+      lines: ["", ...card.lines],
+      rowIds: [undefined, ...card.rowIds],
+      collapseRows: [false, ...card.collapseRows],
+    };
   }
 
   if (collapsed) {
