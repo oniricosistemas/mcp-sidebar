@@ -89,6 +89,54 @@ test("stacks compatible rail panels by rendered height and routes local mouse co
   assert.equal(state.parts.get("footer"), status);
 });
 
+test("uses panel-native participant rows when Gentle Shell exposes the 4.6 panel surface", () => {
+  const received: string[] = [];
+  const integrations = {
+    surface: "panel" as const,
+    render: () => ["▾ INTEGRATIONS", "  Engram OK"],
+    invalidate: () => {},
+  };
+  const legacyCard: Component = {
+    render: () => ["╭─ MCP servers ─╮", "╰───────────────╯"],
+    invalidate: () => {},
+  };
+  const panelSection: Component = {
+    render: () => ["▾ MCP SERVERS", "  ● context7       2 tools"],
+    invalidate: () => {},
+    handleMouse: () => {
+      received.push("panel");
+      return { handled: true };
+    },
+  };
+  const state = {
+    active: true,
+    ownsHost: () => true,
+    parts: new Map([["footer", integrations]]),
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: { [GENTLE_SHELL_SIDEBAR_STATE]: state },
+    requestRender: () => {},
+  } as any;
+
+  const attachment = attachGentleShellRailPanel(tui, legacyCard, panelSection);
+  assert.ok(attachment);
+  const wrapper = state.parts.get("footer") as Component & { surface?: "panel" };
+  assert.equal(wrapper.surface, "panel", "the wrapper must remain on the shared 4.6 panel surface");
+  assert.deepEqual(wrapper.render(32), [
+    "▾ INTEGRATIONS",
+    "  Engram OK",
+    "▾ MCP SERVERS",
+    "  ● context7       2 tools",
+  ]);
+  assert.equal(wrapper.render(32).some((line) => line.includes("╭─")), false);
+  wrapper.handleMouse?.(mouse(3, 4));
+  assert.deepEqual(received, ["panel"]);
+
+  attachment.dispose();
+  assert.equal(state.parts.get("footer"), integrations);
+});
+
 test("includes participant digests so native rail height caches cannot go stale", () => {
   const status = {
     render: () => ["Status"],

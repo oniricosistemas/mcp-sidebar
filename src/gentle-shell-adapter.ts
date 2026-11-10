@@ -11,7 +11,10 @@ export const GENTLE_SHELL_SIDEBAR_STATE = Symbol.for(
 
 const MCP_RAIL_STACK = Symbol.for("mcp-sidebar.gentle-shell-rail-stack");
 
-type RailComponent = Component & { digest?: () => string };
+type RailComponent = Component & {
+  digest?: () => string;
+  surface?: "panel";
+};
 type SidebarState = {
   active?: boolean;
   ownsHost?: () => boolean;
@@ -33,6 +36,7 @@ type RailStack = {
   participants: Map<symbol, Participant>;
   revision: number;
   segments: RenderedSegment[];
+  surface?: "panel";
 };
 type CompatibleTerminal = Record<symbol, unknown>;
 
@@ -83,6 +87,7 @@ function childMouseEvent(
 function createStack(tui: TUI, host: SidebarState, original: RailComponent): RailStack {
   let stack: RailStack;
   const wrapper: RailComponent = {
+    ...(original.surface === "panel" ? { surface: "panel" as const } : {}),
     render(width: number): string[] {
       const lines: string[] = [];
       const segments: RenderedSegment[] = [];
@@ -148,18 +153,22 @@ function createStack(tui: TUI, host: SidebarState, original: RailComponent): Rai
     participants: new Map<symbol, Participant>(),
     revision: 0,
     segments: [],
+    surface: original.surface,
   };
   return stack;
 }
 
 /**
  * Feature-detect Gentle Shell's terminal-owned rail and append a participant.
+ * Legacy hosts receive the framed component; hosts whose footer declares the
+ * 4.6+ shared `surface: "panel"` capability receive the panel-native component.
  * Returns undefined for plain Pi or an incompatible host so callers can retain
  * their public overlay fallback.
  */
 export function attachGentleShellRailPanel(
   tui: TUI,
   component: RailComponent,
+  panelComponent: RailComponent = component,
 ): GentleShellRailAttachment | undefined {
   if (tui.mode !== "fullscreen" || !tui.terminal) return undefined;
   const terminal = tui.terminal as unknown as CompatibleTerminal;
@@ -176,7 +185,10 @@ export function attachGentleShellRailPanel(
   }
 
   const participantId = Symbol("rail-participant");
-  const participant: Participant = { component, visible: true };
+  const participant: Participant = {
+    component: stack.surface === "panel" ? panelComponent : component,
+    visible: true,
+  };
   stack.participants.set(participantId, participant);
   stack.revision++;
   tui.requestRender();
