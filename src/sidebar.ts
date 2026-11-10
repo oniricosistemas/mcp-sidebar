@@ -19,6 +19,7 @@ export type SidebarTone =
   | "title"
   | "warning";
 export type SidebarPaint = (text: string, tone?: SidebarTone) => string;
+export type SidebarSurface = "card" | "panel";
 
 export interface SidebarLayout {
   lines: string[];
@@ -68,15 +69,82 @@ function columns(left: string, right: string, width: number): string {
   return truncateToWidth(`${clippedLeft}${" ".repeat(gap)}${clippedRight}`, width);
 }
 
+function panelRow(
+  left: string,
+  right: string,
+  width: number,
+  paint: SidebarPaint,
+  selected = false,
+): string {
+  const content = columns(`  ${left}`, right, width);
+  return selected ? paint(content, "selected") : content;
+}
+
 export function renderSidebarLayout(
   servers: readonly McpServerView[],
   width: number,
   paint: SidebarPaint,
   selectedId?: string,
   collapsed = false,
+  surface: SidebarSurface = "card",
 ): SidebarLayout {
   const safeWidth = Math.max(20, width);
   const namespaceLabel = `${servers.length} ${servers.length === 1 ? "namespace" : "namespaces"}`;
+
+  if (surface === "panel") {
+    const header = columns(
+      `${paint(collapsed ? "▸" : "▾", "dim")} ${paint("MCP SERVERS", "title")}`,
+      paint(namespaceLabel, "dim"),
+      safeWidth,
+    );
+    const lines = [header];
+    const rowIds: (string | undefined)[] = [undefined];
+    const collapseRows = [true];
+    if (collapsed) return { lines, rowIds, collapseRows };
+
+    lines.push(panelRow(paint("tools registered", "dim"), "", safeWidth, paint));
+    rowIds.push(undefined);
+    collapseRows.push(false);
+
+    if (servers.length === 0) {
+      lines.push(panelRow(paint("No registered MCP tools yet", "dim"), "", safeWidth, paint));
+      rowIds.push(undefined);
+      collapseRows.push(false);
+    } else {
+      const visibleServers = servers.slice(0, MAX_VISIBLE_SERVERS);
+      if (visibleServers.length < servers.length) {
+        lines.push(
+          panelRow(
+            paint(`Showing ${visibleServers.length} of ${servers.length} · /mcp`, "dim"),
+            "",
+            safeWidth,
+            paint,
+          ),
+        );
+        rowIds.push(undefined);
+        collapseRows.push(false);
+      }
+      for (const server of visibleServers) {
+        const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
+        const statusLabel = server.availability ? ` · ${String(server.availability)}` : "";
+        const dotTone = server.availability ? AVAILABILITY_DOT_TONE[server.availability] : "dim";
+        const left = `${paint("●", dotTone)} ${paint(server.label, "text")}${paint(statusLabel, "dim")}`;
+        lines.push(
+          panelRow(
+            left,
+            paint(toolLabel, "dim"),
+            safeWidth,
+            paint,
+            server.id === selectedId,
+          ),
+        );
+        rowIds.push(server.id);
+        collapseRows.push(false);
+      }
+    }
+    return { lines, rowIds, collapseRows };
+  }
+
   if (collapsed) {
     // Same rounded card shape as the sibling rail panels (pr-flow, flema-engram):
     // a title rule carrying the summary plus a closing rule. The ladder keeps the
@@ -270,7 +338,7 @@ export class McpSidebar implements Component {
     return { handled: true };
   }
 
-  render(width: number): string[] {
+  private renderSurface(width: number, surface: SidebarSurface): string[] {
     const layout = renderSidebarLayout(
       this.servers,
       width,
@@ -288,9 +356,23 @@ export class McpSidebar implements Component {
       },
       this.selectedId,
       this.collapsed,
+      surface,
     );
     this.rowIds = layout.rowIds;
     this.collapseRows = layout.collapseRows;
     return layout.lines;
+  }
+
+  createPanelSection(): Component & { digest(): string } {
+    return {
+      render: (width: number) => this.renderSurface(width, "panel"),
+      invalidate: () => this.invalidate(),
+      digest: () => this.digest(),
+      handleMouse: (event: TuiMouseEvent) => this.handleMouse(event),
+    };
+  }
+
+  render(width: number): string[] {
+    return this.renderSurface(width, "card");
   }
 }

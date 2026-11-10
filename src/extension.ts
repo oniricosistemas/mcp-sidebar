@@ -200,7 +200,11 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
             },
           );
           panel.setCollapsed(collapsed);
-          railAttachment = attachGentleShellRailPanel(tui, panel);
+          railAttachment = attachGentleShellRailPanel(
+            tui,
+            panel,
+            panel.createPanelSection(),
+          );
           refresh();
           return panel;
         },

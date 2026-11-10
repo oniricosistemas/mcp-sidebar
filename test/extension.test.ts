@@ -423,6 +423,88 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   assert.equal(sidebarState.parts.get("footer"), replacement);
 });
 
+test("joins Gentle Shell 4.6 as panel rows while preserving the legacy overlay card", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const components: Component[] = [];
+  const integrations = {
+    surface: "panel" as const,
+    render: () => ["▾ INTEGRATIONS", "  Engram OK"],
+    invalidate: () => {},
+  };
+  const sidebarState = {
+    active: true,
+    ownsHost: () => true,
+    parts: new Map([["footer", integrations]]),
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: {
+      rows: 40,
+      columns: 140,
+      [Symbol.for("gentle-pi.experimental-sidebar.state")]: sidebarState,
+    },
+    requestRender: () => {},
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        options.onHandle?.({ setHidden: () => {} });
+        components.push(
+          factory(
+            tui,
+            {
+              fg: (_tone: string, text: string) => text,
+              bold: (text: string) => text,
+              style: (text: string) => text,
+            },
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{
+      name: "mcp__demo__read",
+      namespace: { name: "mcp__demo" },
+      exposure: "deferred",
+    }],
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  const wrapper = sidebarState.parts.get("footer") as Component & { surface?: "panel" };
+  assert.equal(wrapper.surface, "panel");
+  assert.ok(components[0]?.render(48)[0]?.includes("╭─ MCP servers"), "overlay fallback stays legacy");
+  const expanded = wrapper.render(48);
+  assert.deepEqual(expanded.slice(0, 2), ["▾ INTEGRATIONS", "  Engram OK"]);
+  assert.ok(expanded.some((line) => line.startsWith("▾ MCP SERVERS")));
+  assert.ok(expanded.some((line) => line.includes("demo") && line.startsWith("  ")));
+  assert.equal(expanded.some((line) => /[╭╮╰╯│]/.test(line)), false);
+
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
+  const collapsed = wrapper.render(48).at(-1) ?? "";
+  assert.ok(collapsed.startsWith("▸ MCP SERVERS"));
+  assert.ok(collapsed.endsWith("1 namespace"));
+  assert.equal(visibleWidth(collapsed), 48);
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.equal(sidebarState.parts.get("footer"), integrations);
+});
+
 test("opens one namespace detail modal from command or click and restores the passive sidebar", async () => {
   const commands = new Map<string, CommandRegistration>();
   const events = new Map<string, (...args: any[]) => void>();
