@@ -423,7 +423,7 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   assert.equal(sidebarState.parts.get("footer"), replacement);
 });
 
-test("joins Gentle Shell 4.6 as panel rows while preserving the legacy overlay card", async () => {
+test("joins Gentle Shell 4.6 as a separated framed card while preserving the overlay fallback", async () => {
   const commands = new Map<string, CommandRegistration>();
   const events = new Map<string, (...args: any[]) => void>();
   const components: Component[] = [];
@@ -489,16 +489,18 @@ test("joins Gentle Shell 4.6 as panel rows while preserving the legacy overlay c
   assert.equal(wrapper.surface, "panel");
   assert.ok(components[0]?.render(48)[0]?.includes("╭─ MCP servers"), "overlay fallback stays legacy");
   const expanded = wrapper.render(48);
-  assert.deepEqual(expanded.slice(0, 2), ["▾ INTEGRATIONS", "  Engram OK"]);
-  assert.ok(expanded.some((line) => line.startsWith("▾ MCP SERVERS")));
-  assert.ok(expanded.some((line) => line.includes("demo") && line.startsWith("  ")));
-  assert.equal(expanded.some((line) => /[╭╮╰╯│]/.test(line)), false);
+  assert.deepEqual(expanded.slice(0, 3), ["▾ INTEGRATIONS", "  Engram OK", ""]);
+  assert.ok(expanded[3]?.startsWith("╭─ MCP servers"));
+  assert.ok(expanded.some((line) => line.includes("demo") && line.startsWith("│ ")));
+  assert.ok(expanded.at(-1)?.endsWith("╯"));
+  assert.ok(expanded.every((line) => visibleWidth(line) <= 48));
 
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
-  const collapsed = wrapper.render(48).at(-1) ?? "";
-  assert.ok(collapsed.startsWith("▸ MCP SERVERS"));
-  assert.ok(collapsed.endsWith("1 namespace"));
-  assert.equal(visibleWidth(collapsed), 48);
+  const collapsed = wrapper.render(48).slice(-3);
+  assert.equal(collapsed[0], "");
+  assert.ok(collapsed[1]?.startsWith("╭─ MCP servers ▸ Expand"));
+  assert.ok(collapsed[2]?.endsWith("╯"));
+  assert.ok(collapsed.every((line) => visibleWidth(line) <= 48));
 
   events.get("session_shutdown")?.();
   await Promise.resolve();

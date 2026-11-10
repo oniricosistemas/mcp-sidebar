@@ -237,7 +237,7 @@ test("collapses to a framed card and invalidates stale namespace rows", () => {
   assert.ok(sidebar.render(32).some((line) => line.includes("context7")));
 });
 
-test("renders native section rows for the Gentle Shell 4.6 shared panel surface", () => {
+test("renders a separated framed MCP card inside the Gentle Shell 4.6 panel", () => {
   const servers = buildMcpServers(tools);
   const expanded = renderSidebarLayout(
     servers,
@@ -248,14 +248,10 @@ test("renders native section rows for the Gentle Shell 4.6 shared panel surface"
     "panel",
   );
 
-  assert.match(expanded.lines[0] ?? "", /^▾ MCP SERVERS/);
-  assert.ok(expanded.lines[0]?.endsWith("2 namespaces"));
-  assert.ok(expanded.lines.some((line) => line.includes("context7") && line.startsWith("  ")));
-  assert.equal(
-    expanded.lines.some((line) => /[╭╮╰╯│]/.test(line)),
-    false,
-    "the 4.6 host paints one shared surface, so the participant must not add card chrome",
-  );
+  assert.equal(expanded.lines[0], "", "a spacer separates MCP from Integrations");
+  assert.ok(expanded.lines[1]?.startsWith("╭─ MCP servers"));
+  assert.ok(expanded.lines.some((line) => line.includes("context7") && line.startsWith("│ ")));
+  assert.ok(expanded.lines.at(-1)?.endsWith("╯"));
   assert.ok(expanded.lines.every((line) => visibleWidth(line) <= 44));
 
   const collapsed = renderSidebarLayout(
@@ -266,8 +262,10 @@ test("renders native section rows for the Gentle Shell 4.6 shared panel surface"
     true,
     "panel",
   );
-  assert.deepEqual(collapsed.lines, ["▸ MCP SERVERS                   2 namespaces"]);
-  assert.deepEqual(collapsed.collapseRows, [true]);
+  assert.equal(collapsed.lines[0], "");
+  assert.ok(collapsed.lines[1]?.startsWith("╭─ MCP servers ▸ Expand"));
+  assert.ok(collapsed.lines[2]?.endsWith("╯"));
+  assert.deepEqual(collapsed.collapseRows, [false, true, true]);
 });
 
 test("keeps collapse disclosure readable at the minimum renderer width", () => {

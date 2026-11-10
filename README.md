@@ -13,9 +13,9 @@
 
 > [!IMPORTANT]
 > In compatible Gentle Shell fullscreen sessions, MCP follows the native rail visibility. Gentle
-> Shell 4.6 and newer render it as a section on the shared IDE panel surface; older compatible
-> releases retain the standalone framed card. Plain Pi and incompatible hosts use the passive
-> overlay fallback.
+> Shell 4.6 and newer place a separated framed MCP card on the shared IDE panel surface; older
+> compatible releases retain the standalone framed card. Plain Pi and incompatible hosts use the
+> passive overlay fallback.
 
 <div align="center">
   <img src="assets/mcp-sidebar-tui.svg" alt="MCP Sidebar showing eight MCP tool namespaces in Pi" width="420" />
@@ -76,8 +76,8 @@ the status API and its compatibility notes in
 
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
 - **Non-blocking:** neither the native rail participant nor the overlay fallback captures editor focus.
-- **Responsive:** Gentle Shell stacks legacy cards or joins the 4.6+ shared panel surface, and hides the participant with the native rail at narrow widths; standalone Pi retains the overlay.
-- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to a two-line framed card on legacy hosts or one native section header on the 4.6+ panel.
+- **Responsive:** Gentle Shell stacks legacy cards or places a separated framed card on the 4.6+ shared panel surface, and hides the participant with the native rail at narrow widths; standalone Pi retains the overlay.
+- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to a two-line framed card on every compatible host.
 - **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
 - **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
 - **Honest:** connection status comes only from the runtime's sanitized snapshot; inventory never implies health, and builds without the status API show no status at all.
@@ -115,8 +115,9 @@ re-renders on its change events; builds without both methods get no status displ
 Gentle Shell integration is feature-detected through its terminal-owned rail state. The adapter
 composes the existing Status footer by identity, routes mouse coordinates using actual rendered
 heights, and restores the prior owner on disposal. A footer that declares `surface: "panel"` selects
-the borderless 4.6+ section renderer while an older footer keeps the framed card, so compatibility
-does not depend on parsing a package version. While that compatible wrapper remains mounted, MCP
+the 4.6+ renderer, which inserts one spacer before a width-safe framed MCP card; an older footer keeps
+the standalone framed card. Compatibility therefore does not depend on parsing a package version.
+While that compatible wrapper remains mounted, MCP
 follows the Status rail's visibility, including narrow-width hiding. The passive overlay is used only
 when the integration is absent, incompatible, disposed, or replaced by a newer owner.
 
