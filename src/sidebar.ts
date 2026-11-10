@@ -9,7 +9,15 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 import type { McpServerView } from "./mcp-view-model.ts";
 
-export type SidebarTone = "border" | "dim" | "selected" | "success" | "text" | "title";
+export type SidebarTone =
+  | "border"
+  | "dim"
+  | "error"
+  | "selected"
+  | "success"
+  | "text"
+  | "title"
+  | "warning";
 export type SidebarPaint = (text: string, tone?: SidebarTone) => string;
 
 export interface SidebarLayout {
@@ -19,6 +27,23 @@ export interface SidebarLayout {
 }
 
 const MAX_VISIBLE_SERVERS = 8;
+
+/** Dot tone per reported state; a namespace without runtime status claims nothing. */
+const AVAILABILITY_DOT_TONE: Record<NonNullable<McpServerView["availability"]>, SidebarTone> = {
+  ready: "success",
+  connecting: "warning",
+  error: "error",
+  disabled: "dim",
+};
+
+/**
+ * Dashes left inside a collapsed title rule. Chrome is counted once here for
+ * both the selection and the render: `╭─ ` (3), the space after the title (1)
+ * and `╮` (1), plus the space before the right label when there is one (1).
+ */
+function collapsedRuleDashes(width: number, left: string, right: string): number {
+  return width - visibleWidth(left) - visibleWidth(right) - (right ? 6 : 5);
+}
 
 function row(
   content: string,
@@ -66,14 +91,10 @@ export function renderSidebarLayout(
       ["▸ Expand", ""],
     ];
     const chosen = candidates.find(
-      ([left, right]) =>
-        safeWidth - visibleWidth(left) - visibleWidth(right) - (right ? 6 : 5) >= 1,
+      ([left, right]) => collapsedRuleDashes(safeWidth, left, right) >= 1,
     );
     const [leftLabel, rightLabel] = chosen ?? ["▸ Expand", ""];
-    const dashes = Math.max(
-      1,
-      safeWidth - visibleWidth(leftLabel) - visibleWidth(rightLabel) - (rightLabel ? 6 : 5),
-    );
+    const dashes = Math.max(1, collapsedRuleDashes(safeWidth, leftLabel, rightLabel));
     const top = `${paint("╭─ ", "border")}${paint(leftLabel, "title")} ${paint(
       "─".repeat(dashes),
       "border",
@@ -122,7 +143,8 @@ export function renderSidebarLayout(
     for (const server of visibleServers) {
       const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
       const statusLabel = server.availability ? ` · ${String(server.availability)}` : "";
-      const left = `${paint("●", "success")} ${paint(server.label, "text")}${paint(statusLabel, "dim")}`;
+      const dotTone = server.availability ? AVAILABILITY_DOT_TONE[server.availability] : "dim";
+      const left = `${paint("●", dotTone)} ${paint(server.label, "text")}${paint(statusLabel, "dim")}`;
       lines.push(
         row(
           columns(left, paint(toolLabel, "dim"), innerWidth),
