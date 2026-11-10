@@ -8,7 +8,7 @@ import {
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 
-import type { McpToolDetail } from "./mcp-view-model.ts";
+import type { McpServerStatus, McpToolDetail } from "./mcp-view-model.ts";
 
 export type ToolDetailsTone = "accent" | "border" | "dim" | "text" | "title";
 export type ToolDetailsPaint = (text: string, tone?: ToolDetailsTone) => string;
@@ -70,6 +70,7 @@ export function renderToolDetailsLines(
   height: number,
   scrollOffset: number,
   paint: ToolDetailsPaint,
+  availability?: McpServerStatus["state"],
 ): string[] {
   const safeWidth = Math.max(24, width);
   const safeHeight = Math.max(6, height);
@@ -84,7 +85,9 @@ export function renderToolDetailsLines(
     frameTitle(namespaceLabel, safeWidth, paint),
     row(
       paint(
-        `${tools.length} ${tools.length === 1 ? "tool" : "tools"} registered · status: /mcp`,
+        `${tools.length} ${tools.length === 1 ? "tool" : "tools"} registered${
+          availability ? ` · ${availability}` : ""
+        }`,
         "dim",
       ),
       safeWidth,
@@ -105,6 +108,7 @@ export class McpToolDetails implements Component {
   private readonly namespaceLabel: string;
   private readonly tools: readonly McpToolDetail[];
   private readonly done: () => void;
+  private readonly availability?: McpServerStatus["state"];
 
   constructor(
     tui: TUI,
@@ -112,12 +116,14 @@ export class McpToolDetails implements Component {
     namespaceLabel: string,
     tools: readonly McpToolDetail[],
     done: () => void,
+    availability?: McpServerStatus["state"],
   ) {
     this.tui = tui;
     this.theme = theme;
     this.namespaceLabel = namespaceLabel;
     this.tools = tools;
     this.done = done;
+    this.availability = availability;
   }
 
   invalidate(): void {}
@@ -169,6 +175,7 @@ export class McpToolDetails implements Component {
             return this.theme.fg(tone, text);
         }
       },
+      this.availability,
     );
   }
 }
