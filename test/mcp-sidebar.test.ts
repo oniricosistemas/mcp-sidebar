@@ -38,11 +38,71 @@ const tools: ToolDescriptor[] = [
   },
 ];
 
-test("groups reachable MCP tools by namespace and reports honest availability", () => {
+test("groups reachable MCP tools by namespace without inventing availability", () => {
   assert.deepEqual(buildMcpServers(tools), [
-    { id: "chrome_devtools", label: "chrome-devtools", toolCount: 1, availability: "available" },
-    { id: "context7", label: "context7", toolCount: 2, availability: "available" },
+    { id: "chrome_devtools", label: "chrome-devtools", toolCount: 1 },
+    { id: "context7", label: "context7", toolCount: 2 },
   ]);
+});
+
+test("joins runtime MCP status only for namespaces the snapshot reports", () => {
+  const joined = buildMcpServers(tools, [
+    { name: "context7", state: "ready", since: 1 },
+    { name: "chrome_devtools", state: "error", error: { kind: "auth" }, since: 1 },
+  ]);
+  assert.deepEqual(
+    joined.map((server) => [server.id, server.availability]),
+    [
+      ["chrome_devtools", "error"],
+      ["context7", "ready"],
+    ],
+  );
+
+  const partial = buildMcpServers(tools, [{ name: "context7", state: "disabled", since: 1 }]);
+  assert.equal(partial.find((server) => server.id === "context7")?.availability, "disabled");
+  assert.equal(
+    "availability" in partial.find((server) => server.id === "chrome_devtools")!,
+    false,
+    "a namespace missing from the snapshot keeps no status claim",
+  );
+});
+
+test("ignores malformed runtime status entries instead of trusting the snapshot", () => {
+  const malformed = [
+    null,
+    { name: "context7" },
+    { name: "chrome_devtools", state: "bogus" },
+    { state: "ready" },
+    { name: "context7", state: "ready", since: 1 },
+  ] as unknown as Parameters<typeof buildMcpServers>[1];
+
+  const joined = buildMcpServers(tools, malformed);
+  assert.equal(joined.find((server) => server.id === "context7")?.availability, "ready");
+  assert.equal(
+    "availability" in joined.find((server) => server.id === "chrome_devtools")!,
+    false,
+    "an unknown state string is never rendered as a status",
+  );
+
+  const notAnArray = buildMcpServers(tools, "nope" as unknown as Parameters<typeof buildMcpServers>[1]);
+  assert.ok(notAnArray.every((server) => !("availability" in server)));
+});
+
+test("shows per-namespace status labels only when a snapshot is supplied", () => {
+  const withoutStatus = renderSidebarLines(buildMcpServers(tools), 44, (text) => text);
+  assert.ok(withoutStatus.some((line) => line.includes("context7") && line.includes("2 tools")));
+  assert.ok(withoutStatus.every((line) => !/· (ready|connecting|error|disabled)/.test(line)));
+
+  const withStatus = renderSidebarLines(
+    buildMcpServers(tools, [{ name: "context7", state: "ready", since: 1 }]),
+    44,
+    (text) => text,
+  );
+  assert.ok(withStatus.some((line) => line.includes("context7") && line.includes("· ready")));
+  assert.ok(
+    withStatus.some((line) => line.includes("chrome-devtools") && !line.includes("· ")),
+    "a namespace outside the snapshot stays status-free",
+  );
 });
 
 test("ignores hidden MCP tools and unrelated Pi tools", () => {
@@ -89,18 +149,18 @@ test("shows the sidebar only when the terminal can support a passive panel", () 
   assert.equal(shouldShowSidebar(100), true);
 });
 
-test("renders a width-safe panel without claiming transport connectivity", () => {
+test("renders a width-safe panel without claiming or pointing at transport status", () => {
   const lines = renderSidebarLines(buildMcpServers(tools), 30, (text) => text);
 
   assert.equal(lines[0], "╭─ MCP servers ▾ Collapse ───╮");
   assert.ok(lines.some((line) => line.includes("context7") && line.includes("2 tools")));
   assert.ok(lines.some((line) => line.includes("tools registered")));
-  assert.ok(lines.some((line) => line.includes("connection status: /mcp")));
+  assert.ok(lines.every((line) => !line.includes("connection status: /mcp")));
   assert.ok(lines.every((line) => !line.includes("status unknown")));
   assert.ok(lines.every((line) => visibleWidth(line) <= 30));
 });
 
-test("collapses to one actionable header and invalidates stale namespace rows", () => {
+test("collapses to a framed card and invalidates stale namespace rows", () => {
   const collapseChanges: boolean[] = [];
   const opened: string[] = [];
   const sidebar = new McpSidebar(
@@ -133,7 +193,11 @@ test("collapses to one actionable header and invalidates stale namespace rows", 
   }), undefined);
 
   const collapsed = sidebar.render(48);
-  assert.equal(collapsed.length, 1);
+  assert.equal(collapsed.length, 2, "the collapsed card matches the sibling rail cards");
+  assert.ok(collapsed[0]?.startsWith("╭─ "));
+  assert.ok(collapsed[0]?.endsWith("╮"));
+  assert.ok(collapsed[1]?.startsWith("╰"));
+  assert.ok(collapsed[1]?.endsWith("╯"));
   assert.ok(collapsed[0]?.includes("MCP servers"));
   assert.ok(collapsed[0]?.includes("▸ Expand"));
   assert.ok(collapsed[0]?.includes("2 namespaces"));
@@ -180,10 +244,13 @@ test("keeps collapse disclosure readable at the minimum renderer width", () => {
 
   assert.ok(expanded.lines.every((line) => visibleWidth(line) <= 20));
   assert.ok(expanded.lines[0]?.includes("▾ Collapse"));
-  assert.equal(collapsed.lines.length, 1);
+  assert.equal(collapsed.lines.length, 2);
+  assert.ok(collapsed.lines[0]?.startsWith("╭─ "));
   assert.ok(collapsed.lines[0]?.includes("▸ Expand"));
   assert.ok(collapsed.lines[0]?.includes("2 ns"));
+  assert.ok(collapsed.lines[1]?.endsWith("╯"));
   assert.ok(collapsed.lines.every((line) => visibleWidth(line) <= 20));
+  assert.deepEqual(collapsed.collapseRows, [true, true], "every card row toggles");
 });
 
 test("preserves tool counts when a namespace label is wider than its row", () => {
@@ -193,7 +260,6 @@ test("preserves tool counts when a namespace label is wider than its row", () =>
         id: "long",
         label: "a-very-long-mcp-namespace-that-cannot-fit",
         toolCount: 12,
-        availability: "available",
       },
     ],
     32,
@@ -211,7 +277,6 @@ test("bounds large inventories and keeps the overflow path visible", () => {
     id: `server-${index + 1}`,
     label: `server-${String(index + 1).padStart(2, "0")}`,
     toolCount: index + 1,
-    availability: "available" as const,
   }));
   const lines = renderSidebarLines(servers, 32, (text) => text);
 
@@ -219,7 +284,7 @@ test("bounds large inventories and keeps the overflow path visible", () => {
   assert.ok(lines.some((line) => line.includes("server-08")));
   assert.ok(lines.every((line) => !line.includes("server-09")));
   assert.ok(lines.some((line) => line.includes("tools registered")));
-  assert.ok(lines.some((line) => line.includes("connection status: /mcp")));
+  assert.ok(lines.every((line) => !line.includes("connection status: /mcp")));
   assert.ok(lines.length <= 14);
 });
 
@@ -272,10 +337,44 @@ test("maps only visible namespace rows to click activation without taking focus"
   assert.equal(sidebar.isCollapsed(), true);
 });
 
+test("colors the server dot from its reported state instead of always success", () => {
+  const tonesIn = (servers: Parameters<typeof renderSidebarLayout>[0]): Set<string> => {
+    const tones = new Set<string>();
+    renderSidebarLayout(servers, 44, (text, tone = "text") => {
+      tones.add(tone);
+      return text;
+    });
+    return tones;
+  };
+
+  const withoutStatus = tonesIn(buildMcpServers(tools));
+  assert.ok(
+    !withoutStatus.has("success"),
+    "with no runtime status the dot must not claim health",
+  );
+
+  const withStatus = tonesIn(
+    buildMcpServers(tools, [
+      { name: "context7", state: "ready", since: 1 },
+      { name: "chrome_devtools", state: "error", error: { kind: "transport" }, since: 1 },
+    ]),
+  );
+  assert.ok(withStatus.has("success"), "ready keeps the success dot");
+  assert.ok(withStatus.has("error"), "error must not be painted as success");
+
+  const connecting = tonesIn(
+    buildMcpServers(tools, [{ name: "context7", state: "connecting", since: 1 }]),
+  );
+  assert.ok(connecting.has("warning"), "connecting reads as a warning, not health");
+});
+
 test("applies semantic theme roles to the sidebar frame, title, body, and selected row", () => {
   const tones: string[] = [];
   const layout = renderSidebarLayout(
-    buildMcpServers(tools),
+    buildMcpServers(tools, [
+      { name: "context7", state: "ready", since: 1 },
+      { name: "chrome_devtools", state: "ready", since: 1 },
+    ]),
     32,
     (text, tone = "text") => {
       tones.push(tone);
@@ -308,8 +407,8 @@ test("renders bounded theme-aware tool descriptions with scroll guidance", () =>
   );
 
   assert.equal(lines.length, 9);
-  assert.ok(lines.some((line) => line.includes("tools registered")));
-  assert.ok(lines.some((line) => line.includes("/mcp")));
+  assert.ok(lines.some((line) => line.includes("2 tools registered")));
+  assert.ok(lines.every((line) => !line.includes("status: /mcp")));
   assert.ok(lines.every((line) => !line.includes("status unknown")));
   assert.ok(lines.some((line) => line.includes("query_docs")));
   assert.ok(lines.some((line) => line.includes("↑/↓ scroll · esc close")));
@@ -318,6 +417,17 @@ test("renders bounded theme-aware tool descriptions with scroll guidance", () =>
   assert.ok(tones.includes("title"));
   assert.ok(tones.includes("accent"));
   assert.ok(tones.includes("dim"));
+
+  const withStatus = renderToolDetailsLines(
+    "context7",
+    buildMcpToolDetails(tools, "context7"),
+    46,
+    9,
+    0,
+    (text) => text,
+    "ready",
+  );
+  assert.ok(withStatus.some((line) => line.includes("2 tools registered · ready")));
 });
 
 test("scrolls and closes the capturing detail component without exceeding terminal bounds", () => {

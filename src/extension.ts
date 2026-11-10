@@ -4,6 +4,7 @@ import type { OverlayHandle } from "@earendil-works/pi-tui";
 import {
   buildMcpServers,
   buildMcpToolDetails,
+  type McpServerStatus,
   type McpServerView,
 } from "./mcp-view-model.ts";
 import {
@@ -12,6 +13,18 @@ import {
 } from "./gentle-shell-adapter.ts";
 import { McpSidebar } from "./sidebar.ts";
 import { McpToolDetails } from "./tool-details.ts";
+
+/**
+ * Pi builds that ship the sanitized MCP status API (documented in gentle-shell's
+ * `docs/mcp-status.md`) expose both methods. Everything else — including every
+ * currently published Pi — gets no MCP status display at all.
+ */
+interface McpStatusRuntime {
+  getMcpStatus?: () => McpServerStatus[];
+  onMcpStatusChanged?: (
+    listener: (all: McpServerStatus[]) => void,
+  ) => { dispose?: () => void } | (() => void);
+}
 
 export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let panel: McpSidebar | undefined;
@@ -25,9 +38,14 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   let collapsed = false;
   let activeContext: ExtensionContext | undefined;
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
-  let inventoryFingerprint: string | undefined;
+  let viewStateFingerprint: string | undefined;
 
-  const currentServers = (): McpServerView[] => buildMcpServers(pi.getAllTools());
+  const runtime = pi as ExtensionAPI & McpStatusRuntime;
+  let statusSnapshot: McpServerStatus[] | undefined;
+  let statusSubscription: { dispose?: () => void } | (() => void) | undefined;
+
+  const currentServers = (): McpServerView[] =>
+    buildMcpServers(pi.getAllTools(), statusSnapshot);
 
   const syncPresentation = (): void => {
     const showPanel = visible && !detailsOpen;
@@ -37,10 +55,10 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
 
   const refresh = (): void => {
     const servers = currentServers();
-    const nextFingerprint = JSON.stringify(servers);
-    if (nextFingerprint === inventoryFingerprint) return;
+    const nextFingerprint = JSON.stringify({ servers, status: statusSnapshot ?? null });
+    if (nextFingerprint === viewStateFingerprint) return;
 
-    inventoryFingerprint = nextFingerprint;
+    viewStateFingerprint = nextFingerprint;
     panel?.setServers(servers);
     railAttachment?.invalidate();
     const namespaceLabel = servers.length === 1 ? "namespace" : "namespaces";
@@ -48,6 +66,44 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
       "mcp-sidebar",
       `${servers.length} MCP ${namespaceLabel}${servers.length === 0 ? " visible" : ""}`,
     );
+  };
+
+  const disposeStatusSubscription = (): void => {
+    const subscription = statusSubscription;
+    statusSubscription = undefined;
+    if (!subscription) return;
+    if (typeof subscription === "function") subscription();
+    else subscription.dispose?.();
+  };
+
+  const subscribeStatus = (): void => {
+    disposeStatusSubscription();
+    // Detect at call time: the runtime may gain the API after this extension
+    // loaded, and a frozen `typeof` result from load time would miss it.
+    // `bind` keeps the runtime as `this` when the host implements the methods
+    // as host methods rather than standalone functions.
+    const onStatus = runtime.onMcpStatusChanged?.bind(runtime);
+    const readStatus = runtime.getMcpStatus?.bind(runtime);
+    if (typeof onStatus !== "function" || typeof readStatus !== "function") {
+      statusSnapshot = undefined;
+      return;
+    }
+    // Subscribe before reading: a change landing in the subscribe/read window
+    // would otherwise be missed forever, because the inventory timer never
+    // re-reads the status snapshot.
+    statusSubscription = onStatus((all) => {
+      statusSnapshot = all;
+      refresh();
+    });
+    try {
+      const snapshot: unknown = readStatus();
+      statusSnapshot = Array.isArray(snapshot) ? (snapshot as McpServerStatus[]) : undefined;
+    } catch {
+      // A status API that refuses the snapshot degrades to "no status shown"
+      // instead of breaking session start.
+      statusSnapshot = undefined;
+    }
+    refresh();
   };
 
   const startRefreshTimer = (): void => {
@@ -91,7 +147,14 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     try {
       await ctx.ui.custom<void>(
         (tui, theme, _keybindings, done) => {
-          const details = new McpToolDetails(tui, theme, server.label, tools, () => done(undefined));
+          const details = new McpToolDetails(
+            tui,
+            theme,
+            server.label,
+            tools,
+            () => done(undefined),
+            () => findServer(server.id)?.availability,
+          );
           finishDetails = () => details.close();
           return details;
         },
@@ -120,7 +183,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     if (ctx.mode !== "tui" || panel) return;
 
     activeContext = ctx;
-    inventoryFingerprint = undefined;
+    viewStateFingerprint = undefined;
     void ctx.ui
       .custom<void>(
         (tui, theme, _keybindings, done) => {
@@ -240,9 +303,10 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
     shuttingDown = false;
     visible = true;
     collapsed = false;
+    subscribeStatus();
     if (ctx.mode === "tui" && panel) {
       activeContext = ctx;
-      inventoryFingerprint = undefined;
+      viewStateFingerprint = undefined;
       panel.setCollapsed(false);
       railAttachment?.invalidate();
       refresh();
@@ -260,12 +324,14 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
   pi.on("session_shutdown", () => {
     shuttingDown = true;
     stopRefreshTimer();
+    disposeStatusSubscription();
+    statusSnapshot = undefined;
     activeContext?.ui.setStatus("mcp-sidebar", undefined);
     finishDetails?.();
     railAttachment?.dispose();
     railAttachment = undefined;
     finishOverlay?.();
     activeContext = undefined;
-    inventoryFingerprint = undefined;
+    viewStateFingerprint = undefined;
   });
 }

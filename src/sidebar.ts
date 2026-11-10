@@ -9,7 +9,15 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 import type { McpServerView } from "./mcp-view-model.ts";
 
-export type SidebarTone = "border" | "dim" | "selected" | "success" | "text" | "title";
+export type SidebarTone =
+  | "border"
+  | "dim"
+  | "error"
+  | "selected"
+  | "success"
+  | "text"
+  | "title"
+  | "warning";
 export type SidebarPaint = (text: string, tone?: SidebarTone) => string;
 
 export interface SidebarLayout {
@@ -19,6 +27,23 @@ export interface SidebarLayout {
 }
 
 const MAX_VISIBLE_SERVERS = 8;
+
+/** Dot tone per reported state; a namespace without runtime status claims nothing. */
+const AVAILABILITY_DOT_TONE: Record<NonNullable<McpServerView["availability"]>, SidebarTone> = {
+  ready: "success",
+  connecting: "warning",
+  error: "error",
+  disabled: "dim",
+};
+
+/**
+ * Dashes left inside a collapsed title rule. Chrome is counted once here for
+ * both the selection and the render: `╭─ ` (3), the space after the title (1)
+ * and `╮` (1), plus the space before the right label when there is one (1).
+ */
+function collapsedRuleDashes(width: number, left: string, right: string): number {
+  return width - visibleWidth(left) - visibleWidth(right) - (right ? 6 : 5);
+}
 
 function row(
   content: string,
@@ -53,16 +78,32 @@ export function renderSidebarLayout(
   const safeWidth = Math.max(20, width);
   const namespaceLabel = `${servers.length} ${servers.length === 1 ? "namespace" : "namespaces"}`;
   if (collapsed) {
-    const leftLabel = safeWidth >= 34 ? "MCP servers ▸ Expand" : "MCP ▸ Expand";
-    const rightLabel = safeWidth >= 48
-      ? `${namespaceLabel} · ctrl+shift+m`
-      : safeWidth >= 29
-        ? namespaceLabel
-        : `${servers.length} ns`;
+    // Same rounded card shape as the sibling rail panels (pr-flow, flema-engram):
+    // a title rule carrying the summary plus a closing rule. The ladder keeps the
+    // richest label pair that still leaves at least one dash inside the frame.
+    const shortCount = `${servers.length} ns`;
+    const candidates: [string, string][] = [
+      ["MCP servers ▸ Expand", `${namespaceLabel} · ctrl+shift+m`],
+      ["MCP servers ▸ Expand", namespaceLabel],
+      ["MCP ▸ Expand", namespaceLabel],
+      ["MCP ▸ Expand", shortCount],
+      ["▸ Expand", shortCount],
+      ["▸ Expand", ""],
+    ];
+    const chosen = candidates.find(
+      ([left, right]) => collapsedRuleDashes(safeWidth, left, right) >= 1,
+    );
+    const [leftLabel, rightLabel] = chosen ?? ["▸ Expand", ""];
+    const dashes = Math.max(1, collapsedRuleDashes(safeWidth, leftLabel, rightLabel));
+    const top = `${paint("╭─ ", "border")}${paint(leftLabel, "title")} ${paint(
+      "─".repeat(dashes),
+      "border",
+    )}${rightLabel ? ` ${paint(rightLabel, "dim")}` : ""}${paint("╮", "border")}`;
+    const bottom = paint(`╰${"─".repeat(Math.max(0, safeWidth - 2))}╯`, "border");
     return {
-      lines: [columns(paint(leftLabel, "title"), paint(rightLabel, "dim"), safeWidth)],
-      rowIds: [undefined],
-      collapseRows: [true],
+      lines: [top, bottom],
+      rowIds: [undefined, undefined],
+      collapseRows: [true, true],
     };
   }
 
@@ -77,11 +118,10 @@ export function renderSidebarLayout(
   const lines = [
     top,
     row(paint("tools registered", "dim"), safeWidth, paint),
-    row(paint("connection status: /mcp", "dim"), safeWidth, paint),
     row("", safeWidth, paint),
   ];
-  const rowIds: (string | undefined)[] = [undefined, undefined, undefined, undefined];
-  const collapseRows = [true, false, false, false];
+  const rowIds: (string | undefined)[] = [undefined, undefined, undefined];
+  const collapseRows = [true, false, false];
 
   if (servers.length === 0) {
     lines.push(row(paint("No registered MCP tools yet", "dim"), safeWidth, paint));
@@ -102,7 +142,9 @@ export function renderSidebarLayout(
     }
     for (const server of visibleServers) {
       const toolLabel = `${server.toolCount} ${server.toolCount === 1 ? "tool" : "tools"}`;
-      const left = `${paint("●", "success")} ${paint(server.label, "text")}`;
+      const statusLabel = server.availability ? ` · ${String(server.availability)}` : "";
+      const dotTone = server.availability ? AVAILABILITY_DOT_TONE[server.availability] : "dim";
+      const left = `${paint("●", dotTone)} ${paint(server.label, "text")}${paint(statusLabel, "dim")}`;
       lines.push(
         row(
           columns(left, paint(toolLabel, "dim"), innerWidth),

@@ -5,7 +5,7 @@ import type { Component, OverlayOptions } from "@earendil-works/pi-tui";
 import { visibleWidth } from "@earendil-works/pi-tui";
 
 import extension from "../src/extension.ts";
-import { buildMcpServers } from "../src/mcp-view-model.ts";
+import { buildMcpServers, type McpServerStatus } from "../src/mcp-view-model.ts";
 
 interface CommandRegistration {
   handler: (args: string, context: unknown) => Promise<void>;
@@ -88,9 +88,18 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
   assert.equal(statuses.at(-1)?.[1], "1 MCP namespace");
   assert.ok(component?.render(32).every((line) => visibleWidth(line) <= 32));
+  const withoutStatusApi = component?.render(48) ?? [];
+  assert.ok(
+    withoutStatusApi.every((line) => !line.includes("connection status")),
+    "a runtime without pi.getMcpStatus gets no status pointer",
+  );
+  assert.ok(
+    withoutStatusApi.every((line) => !/· (ready|connecting|error|disabled)/.test(line)),
+    "a runtime without pi.getMcpStatus gets no status claim",
+  );
 
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
-  assert.equal(component?.render(32).length, 1);
+  assert.equal(component?.render(32).length, 2);
   assert.ok(component?.render(32)[0]?.includes("▸ Expand"));
   await shortcuts.get("ctrl+shift+m")?.handler(context);
   assert.ok((component?.render(32).length ?? 0) > 1);
@@ -108,13 +117,13 @@ test("registers, toggles, refreshes, and cleans up through Pi's public extension
     alt: false,
     ctrl: false,
   });
-  assert.equal(component?.render(32).length, 1);
+  assert.equal(component?.render(32).length, 2);
 
   await commands.get("mcp-sidebar")?.handler("", context);
   assert.equal(options.overlayOptions?.visible?.(100, 30), false);
   await commands.get("mcp-sidebar")?.handler("", context);
   assert.equal(options.overlayOptions?.visible?.(100, 30), true);
-  assert.equal(component?.render(32).length, 1, "hide/show must preserve collapse state");
+  assert.equal(component?.render(32).length, 2, "hide/show must preserve collapse state");
   assert.deepEqual(hidden, [true, false]);
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
 
@@ -299,7 +308,7 @@ test("deduplicates tools and rejects malformed or hidden MCP inventory", () => {
       { name: "mcp__x__bad", namespace: { name: "mcp__" } },
       { name: "read", namespace: { name: "mcp__x" } },
     ]),
-    [{ id: "x", label: "x", toolCount: 1, availability: "available" }],
+    [{ id: "x", label: "x", toolCount: 1 }],
   );
   assert.deepEqual(buildMcpServers([]), []);
 });
@@ -380,7 +389,7 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   const expandedHeight = wrapper.render(48).length;
   const expandedDigest = (wrapper as Component & { digest?: () => string }).digest?.();
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
-  assert.equal(wrapper.render(48).length, 3, "Status plus one collapsed MCP row");
+  assert.equal(wrapper.render(48).length, 4, "Status plus the collapsed MCP card");
   assert.notEqual((wrapper as Component & { digest?: () => string }).digest?.(), expandedDigest);
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
   assert.equal(wrapper.render(48).length, expandedHeight);
@@ -396,7 +405,7 @@ test("mounts below Gentle Shell Status and keeps the standalone overlay as fallb
   assert.deepEqual(wrapper.render(48), ["Status", "Project demo"]);
   components[1]?.handleInput?.("\u001b");
   await detailsOpen;
-  assert.equal(wrapper.render(48).length, 3, "details restore the collapsed panel");
+  assert.equal(wrapper.render(48).length, 4, "details restore the collapsed panel");
 
   events.get("session_start")?.({}, context);
   assert.equal(wrapper.render(48).length, expandedHeight, "session start resets expanded state");
@@ -548,4 +557,294 @@ test("opens one namespace detail modal from command or click and restores the pa
   events.get("session_shutdown")?.();
   await Promise.resolve();
   assert.deepEqual(finished.slice(-2), ["details", "sidebar"]);
+});
+
+test("shows runtime MCP status only when the runtime exposes the status API", async (t) => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  t.after(() => events.get("session_shutdown")?.());
+  const components: Component[] = [];
+  let listener: ((all: McpServerStatus[]) => void) | undefined;
+  let disposed = 0;
+  let snapshot: McpServerStatus[] = [];
+  const tools = [
+    { name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" },
+  ];
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      select: async () => undefined,
+      custom: (factory: (...args: any[]) => Component) => {
+        components.push(
+          factory(
+            { terminal: { rows: 24, columns: 120 }, requestRender: () => {} },
+            theme,
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+
+  snapshot = [{ name: "demo", state: "ready", since: 1 }];
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => tools,
+    getMcpStatus: () => snapshot,
+    onMcpStatusChanged: (next: (all: McpServerStatus[]) => void) => {
+      listener = next;
+      return {
+        dispose: () => {
+          disposed++;
+          listener = undefined;
+        },
+      };
+    },
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  assert.ok(
+    (components[0]?.render(60) ?? []).some(
+      (line) => line.includes("demo") && line.includes("· ready"),
+    ),
+    "the panel labels namespaces with the runtime snapshot state",
+  );
+
+  snapshot = [{ name: "demo", state: "error", error: { kind: "transport" }, since: 2 }];
+  listener?.(snapshot);
+  assert.ok(
+    (components[0]?.render(60) ?? []).some((line) => line.includes("· error")),
+    "status change events re-render the panel",
+  );
+
+  void commands.get("mcp-tools")?.handler("demo", context);
+  assert.ok(
+    (components[1]?.render(48) ?? []).some((line) => line.includes("1 tool registered · error")),
+    "the detail dialog reports the same runtime state",
+  );
+
+  snapshot = [{ name: "demo", state: "disabled", since: 3 }];
+  listener?.(snapshot);
+  assert.ok(
+    (components[1]?.render(48) ?? []).some((line) => line.includes("1 tool registered · disabled")),
+    "an open dialog follows status changes instead of keeping the state from open time",
+  );
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.equal(disposed, 1);
+  assert.equal(listener, undefined);
+});
+
+test("survives a status API that throws instead of breaking the session", async (t) => {
+  const events = new Map<string, (...args: any[]) => void>();
+  t.after(() => events.get("session_shutdown")?.());
+  const components: Component[] = [];
+  let reads = 0;
+  let disposed = 0;
+  const tools = [{ name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" }];
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (factory: (...args: any[]) => Component) => {
+        components.push(
+          factory(
+            { terminal: { rows: 24, columns: 120 }, requestRender: () => {} },
+            theme,
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+
+  extension({
+    registerCommand: () => {},
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => tools,
+    getMcpStatus: () => {
+      reads += 1;
+      throw new Error("runtime refused the snapshot");
+    },
+    onMcpStatusChanged: () => ({
+      dispose: () => {
+        disposed += 1;
+      },
+    }),
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  assert.ok(reads >= 1, "the snapshot read happens at subscribe time");
+  assert.ok(
+    (components[0]?.render(60) ?? []).every(
+      (line) => !/· (ready|connecting|error|disabled)/.test(line),
+    ),
+    "a throwing status API shows no status instead of crashing the session",
+  );
+
+  events.get("session_shutdown")?.();
+  assert.equal(disposed, 1, "the status subscription is released on session shutdown");
+});
+
+test("keeps status API methods bound to their runtime host", async (t) => {
+  const events = new Map<string, (...args: any[]) => void>();
+  t.after(() => events.get("session_shutdown")?.());
+  const components: Component[] = [];
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (factory: (...args: any[]) => Component) => {
+        components.push(
+          factory(
+            { terminal: { rows: 24, columns: 120 }, requestRender: () => {} },
+            { fg: (_tone: string, text: string) => text, bold: (text: string) => text, style: (text: string) => text },
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+  const runtime = {
+    registerCommand: () => {},
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{ name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" }],
+    snapshot: [{ name: "demo", state: "ready", since: 1 }] as McpServerStatus[],
+    // Both methods reach their host through `this`; a detached call throws.
+    getMcpStatus(this: { snapshot: McpServerStatus[] }): McpServerStatus[] {
+      return this.snapshot;
+    },
+    onMcpStatusChanged(this: unknown, _listener: (all: McpServerStatus[]) => void) {
+      if (typeof this !== "object" || this === null) throw new TypeError("detached host");
+      return { dispose: () => {} };
+    },
+  };
+
+  extension(runtime as any);
+  events.get("session_start")?.({}, context);
+  assert.ok(
+    (components[0]?.render(60) ?? []).some((line) => line.includes("· ready")),
+    "status methods must run with their runtime as `this`",
+  );
+  events.get("session_shutdown")?.();
+});
+
+test("detects a status API that appears after the extension loaded", async (t) => {
+  const events = new Map<string, (...args: any[]) => void>();
+  t.after(() => events.get("session_shutdown")?.());
+  const components: Component[] = [];
+  const tools = [{ name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" }];
+  const theme = {
+    fg: (_tone: string, text: string) => text,
+    bold: (text: string) => text,
+    style: (text: string) => text,
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (factory: (...args: any[]) => Component) => {
+        components.push(
+          factory(
+            { terminal: { rows: 24, columns: 120 }, requestRender: () => {} },
+            theme,
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+  const runtime: Record<string, unknown> = {
+    registerCommand: () => {},
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => tools,
+  };
+
+  extension(runtime as any);
+  runtime.getMcpStatus = () => [{ name: "demo", state: "ready", since: 1 }];
+  runtime.onMcpStatusChanged = () => ({ dispose: () => {} });
+
+  events.get("session_start")?.({}, context);
+  assert.ok(
+    (components[0]?.render(60) ?? []).some((line) => line.includes("· ready")),
+    "availability is evaluated when subscribing, not frozen when the extension loads",
+  );
+
+  events.get("session_shutdown")?.();
+});
+
+test("subscribes to status changes before reading the first snapshot", async (t) => {
+  const events = new Map<string, (...args: any[]) => void>();
+  t.after(() => events.get("session_shutdown")?.());
+  const order: string[] = [];
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (factory: (...args: any[]) => Component) => {
+        factory(
+          { terminal: { rows: 24, columns: 120 }, requestRender: () => {} },
+          { fg: (_t: string, text: string) => text, bold: (t: string) => t, style: (t: string) => t },
+          {},
+          () => {},
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+
+  extension({
+    registerCommand: () => {},
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{ name: "mcp__demo__read", namespace: { name: "mcp__demo" }, exposure: "direct" }],
+    getMcpStatus: () => {
+      order.push("read");
+      return [{ name: "demo", state: "ready", since: 1 }];
+    },
+    onMcpStatusChanged: () => {
+      order.push("subscribe");
+      return { dispose: () => order.push("dispose") };
+    },
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  assert.deepEqual(
+    order,
+    ["subscribe", "read"],
+    "a change landing in the subscribe/read window must not be lost",
+  );
+
+  events.get("session_shutdown")?.();
+  assert.deepEqual(order, ["subscribe", "read", "dispose"]);
 });

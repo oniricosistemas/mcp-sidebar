@@ -64,20 +64,22 @@ authentication, reconnection, and configuration.
 | Signal | Meaning |
 |---|---|
 | `tools registered` | Pi currently exposes one or more tools from this MCP namespace. |
-| `connection status: /mcp` | Open Pi's authoritative MCP screen for transport and authentication state. |
+| `<server> · ready` (also `connecting`, `error`, `disabled`) | The runtime's sanitized MCP status snapshot for that namespace, shown only when the Pi build exposes `pi.getMcpStatus()` and `pi.onMcpStatusChanged()`. |
 
-Registered tools do not prove that the underlying transport is still connected. The extension
-therefore directs connection checks to `/mcp` and never claims connected state from inventory alone.
+Without that API nothing is shown: the panel reports inventory only and never infers connection
+health from registered tools; the `/mcp` guidance above stays authoritative. Gentle Shell documents
+the status API and its compatibility notes in
+[`docs/mcp-status.md`](https://github.com/Gentleman-Programming/gentle-shell/blob/main/docs/mcp-status.md).
 
 ## Design goals
 
 - **Glanceable:** server namespaces and tool counts fit in a compact panel.
 - **Non-blocking:** neither the native rail participant nor the overlay fallback captures editor focus.
 - **Responsive:** Gentle Shell stacks participating rail panels by rendered height and hides them together at narrow widths; standalone Pi retains the overlay.
-- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to one summary row.
+- **Collapsible:** header click, `/mcp-sidebar-collapse`, and `Ctrl+Shift+M` reduce MCP to a two-line framed card that matches the other rail panels.
 - **Theme-aware:** frame, text, selection, and details colors follow the active Pi theme.
 - **Inspectable:** fullscreen row clicks and `/mcp-tools` reveal tool names and descriptions.
-- **Honest:** availability is reported separately from connection health.
+- **Honest:** connection status comes only from the runtime's sanitized snapshot; inventory never implies health, and builds without the status API show no status at all.
 
 ## Local development
 
@@ -105,6 +107,10 @@ src/
 The extension observes Pi's public tool inventory. Because built-in MCP connections register tools
 asynchronously, it samples that inventory once per second and renders only when it changes.
 
+When the runtime exposes the sanitized MCP status API documented by Gentle Shell
+(`pi.getMcpStatus()` / `pi.onMcpStatusChanged()`), the panel joins that snapshot per namespace and
+re-renders on its change events; builds without both methods get no status display at all.
+
 Gentle Shell integration is feature-detected through its terminal-owned rail state. The adapter
 composes the existing Status footer by identity, routes mouse coordinates using actual rendered
 heights, and restores the prior owner on disposal. While that compatible wrapper remains mounted,
@@ -112,6 +118,10 @@ MCP follows the Status rail's visibility, including narrow-width hiding. The pas
 only when the integration is absent, incompatible, disposed, or replaced by a newer owner.
 
 ## Roadmap
+
+> 📽️ **Presentación social:** el deck interactivo, el PDF, los carruseles por plataforma y el copy
+> para LinkedIn/X/Discord están en [`presentation/`](presentation/README.md). Todo local, listo para
+> publicar con autorización explícita.
 
 - [x] Project and package foundation
 - [x] Responsive passive sidebar MVP
