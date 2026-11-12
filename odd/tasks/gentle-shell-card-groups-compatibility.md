@@ -12,7 +12,7 @@ Branch: `fix/gentle-shell-card-groups` · Test runner: Node test runner + TypeSc
 ## Tasks
 
 - **T1** · S1-S3 · inline (shared footer contract; test-first; independent verification required for Risk item 3) · done · commit: `e5e214d`
-- **T2** · S4 · inline (tinted spacer and native rail-title colors; test-first; independent verification required for Risk item 3) · in_progress · commit: pending
+- **T2** · S4 · inline (tinted spacer and native rail-title colors; test-first; independent verification required for Risk item 3) · done · commit: `7e53bd0`
 
 ## Log
 
@@ -31,3 +31,5 @@ Como aca no tiene la main, puede ver el repo?”
 - **L10 — S4 RED/GREEN:** RED: the grouped header rendered without a spacer and used the legacy bolded card-title tone, failing the new extension and renderer tests. GREEN: the grouped renderer emits one leading spacer row whose `cardGroups` metadata starts at row 1, so carded rails drop the spacer and keep their native gap while tinted rails render it; the title now uses the new `railTitle` tone mapped to plain `accent` without bold. Full suite 51/51, typecheck, `git diff --check`, and package dry-run pass.
 - **L11 — Verification:** The independent verifier was unavailable (two attempts failed with unspecified errors). Inline structural verification substituted: base `origin/main` in a scratch worktree proved byte-identical legacy `card`/`panel` output across six widths and both collapse states, carded rails drop the spacer outside every composed group, tinted rails render it, collapsed spacer/group metadata hold, and grouped rows stay bounded and unframed at every width. The independent-verification gap is reported, not compensated by ceremony.
 - **L12 — Risk:** item 3, again for the shared `cardGroups` metadata the wrapper composes; the participant's spacer row is deliberately outside every declared group.
+- **L13 — Native assessment:** Committed-range assessment against `main` returned native risk medium, 129 changed lines, `reviewDue: false` (under budget); the escalation for Risk item 3 keeps the independent-verifier requirement, whose unavailability is recorded in L11 and owned by the user.
+- **L14 — Slice boundary:** This branch contains only the S4 correction: 126 authored changed lines against `main` (commits `7e53bd0`, `27cf5ea`); the running counter that crossed 400 measures the older `fix/gentle-shell-4.6-mcp-card` boundary and does not apply to this PR against `main`.
