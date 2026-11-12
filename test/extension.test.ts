@@ -507,6 +507,116 @@ test("joins Gentle Shell 4.6 as a separated framed card while preserving the ove
   assert.equal(sidebarState.parts.get("footer"), integrations);
 });
 
+test("joins current Gentle Shell as an independent native card without changing existing groups", async () => {
+  const commands = new Map<string, CommandRegistration>();
+  const events = new Map<string, (...args: any[]) => void>();
+  const components: Component[] = [];
+  const integrations = {
+    surface: "panel" as const,
+    render: () => [
+      "▾ CHANGES",
+      "  clean",
+      "▾ STATS",
+      "  $0.000",
+      "▾ INTEGRATIONS",
+      "  1 MCP namespace",
+    ],
+    invalidate: () => {},
+    cardGroups: () => ({
+      groups: [
+        { start: 0, end: 2 },
+        { start: 2, end: 4 },
+        { start: 4, end: 6 },
+      ],
+    }),
+  };
+  const sidebarState = {
+    active: true,
+    ownsHost: () => true,
+    parts: new Map([["footer", integrations]]),
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: {
+      rows: 40,
+      columns: 140,
+      [Symbol.for("gentle-pi.experimental-sidebar.state")]: sidebarState,
+    },
+    requestRender: () => {},
+  };
+  const context = {
+    mode: "tui",
+    ui: {
+      setStatus: () => {},
+      notify: () => {},
+      custom: (
+        factory: (...args: any[]) => Component,
+        options: { onHandle?: (handle: unknown) => void },
+      ) => {
+        options.onHandle?.({ setHidden: () => {} });
+        components.push(
+          factory(
+            tui,
+            {
+              fg: (_tone: string, text: string) => text,
+              bold: (text: string) => text,
+              style: (text: string) => text,
+            },
+            {},
+            () => {},
+          ),
+        );
+        return new Promise<void>(() => {});
+      },
+    },
+  };
+
+  extension({
+    registerCommand: (name: string, command: CommandRegistration) => commands.set(name, command),
+    registerShortcut: () => {},
+    on: (name: string, handler: (...args: any[]) => void) => events.set(name, handler),
+    getAllTools: () => [{
+      name: "mcp__demo__read",
+      namespace: { name: "mcp__demo" },
+      exposure: "deferred",
+    }],
+  } as any);
+
+  events.get("session_start")?.({}, context);
+  const wrapper = sidebarState.parts.get("footer") as Component & {
+    surface?: "panel";
+    cardGroups?: (width: number) => {
+      groups: Array<{ start: number; end: number }>;
+    };
+  };
+  const expanded = wrapper.render(48);
+  assert.equal(wrapper.surface, "panel");
+  assert.deepEqual(expanded.slice(0, 6), integrations.render());
+  assert.ok(expanded[6]?.startsWith("▾ MCP SERVERS"));
+  assert.ok(expanded.some((line) => line.includes("demo") && !line.includes("│")));
+  assert.equal(expanded.some((line) => /[╭╮╰╯]/.test(line)), false);
+  assert.deepEqual(wrapper.cardGroups?.(48), {
+    groups: [
+      { start: 0, end: 2 },
+      { start: 2, end: 4 },
+      { start: 4, end: 6 },
+      { start: 6, end: expanded.length },
+    ],
+  });
+  assert.ok(expanded.every((line) => visibleWidth(line) <= 48));
+  assert.ok(components[0]?.render(48)[0]?.startsWith("╭─ MCP servers"), "overlay stays legacy");
+
+  await commands.get("mcp-sidebar-collapse")?.handler("", context);
+  const collapsed = wrapper.render(48);
+  assert.equal(collapsed.length, 7);
+  assert.ok(collapsed[6]?.startsWith("▸ MCP SERVERS"));
+  assert.deepEqual(wrapper.cardGroups?.(48)?.groups.at(-1), { start: 6, end: 7 });
+
+  events.get("session_shutdown")?.();
+  await Promise.resolve();
+  assert.equal(sidebarState.parts.get("footer"), integrations);
+});
+
 test("opens one namespace detail modal from command or click and restores the passive sidebar", async () => {
   const commands = new Map<string, CommandRegistration>();
   const events = new Map<string, (...args: any[]) => void>();

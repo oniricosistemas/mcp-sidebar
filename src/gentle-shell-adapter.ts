@@ -11,7 +11,12 @@ export const GENTLE_SHELL_SIDEBAR_STATE = Symbol.for(
 
 const MCP_RAIL_STACK = Symbol.for("mcp-sidebar.gentle-shell-rail-stack");
 
+type CardGroupLayout = {
+  groups: Array<{ start: number; end: number }>;
+  loose?: number[];
+};
 type RailComponent = Component & {
+  cardGroups?: (width: number) => CardGroupLayout | undefined;
   digest?: () => string;
   surface?: "panel";
 };
@@ -36,7 +41,9 @@ type RailStack = {
   participants: Map<symbol, Participant>;
   revision: number;
   segments: RenderedSegment[];
+  segmentsWidth?: number;
   surface?: "panel";
+  supportsCardGroups: boolean;
 };
 type CompatibleTerminal = Record<symbol, unknown>;
 
@@ -86,8 +93,36 @@ function childMouseEvent(
 
 function createStack(tui: TUI, host: SidebarState, original: RailComponent): RailStack {
   let stack: RailStack;
+  const supportsCardGroups = typeof original.cardGroups === "function";
   const wrapper: RailComponent = {
     ...(original.surface === "panel" ? { surface: "panel" as const } : {}),
+    ...(supportsCardGroups
+      ? {
+        cardGroups(width: number): CardGroupLayout {
+          if (stack.segmentsWidth !== width) wrapper.render(width);
+          const groups: CardGroupLayout["groups"] = [];
+          const loose: number[] = [];
+
+          for (const segment of stack.segments) {
+            const layout = segment.component.cardGroups?.(width);
+            if (layout) {
+              groups.push(...layout.groups.map(({ start, end }) => ({
+                start: segment.startY + start,
+                end: segment.startY + end,
+              })));
+              loose.push(...(layout.loose ?? []).map((row) => segment.startY + row));
+            } else {
+              groups.push({
+                start: segment.startY,
+                end: segment.startY + segment.height,
+              });
+            }
+          }
+
+          return loose.length > 0 ? { groups, loose } : { groups };
+        },
+      }
+      : {}),
     render(width: number): string[] {
       const lines: string[] = [];
       const segments: RenderedSegment[] = [];
@@ -104,11 +139,13 @@ function createStack(tui: TUI, host: SidebarState, original: RailComponent): Rai
         if (participant.visible) append(participant.component);
       }
       stack.segments = segments;
+      stack.segmentsWidth = width;
       return lines;
     },
     invalidate(): void {
       stack.revision++;
       stack.segments = [];
+      stack.segmentsWidth = undefined;
       original.invalidate();
       for (const participant of stack.participants.values()) {
         participant.component.invalidate();
@@ -153,7 +190,9 @@ function createStack(tui: TUI, host: SidebarState, original: RailComponent): Rai
     participants: new Map<symbol, Participant>(),
     revision: 0,
     segments: [],
+    segmentsWidth: undefined,
     surface: original.surface,
+    supportsCardGroups,
   };
   return stack;
 }
@@ -161,7 +200,9 @@ function createStack(tui: TUI, host: SidebarState, original: RailComponent): Rai
 /**
  * Feature-detect Gentle Shell's terminal-owned rail and append a participant.
  * Legacy hosts receive the framed component; hosts whose footer declares the
- * 4.6+ shared `surface: "panel"` capability receive the panel-native component.
+ * 4.6+ shared `surface: "panel"` capability receive the separated panel card.
+ * Current hosts that also expose `cardGroups(width)` receive native panel rows
+ * whose groups are composed with the footer's existing independent cards.
  * Returns undefined for plain Pi or an incompatible host so callers can retain
  * their public overlay fallback.
  */
@@ -169,6 +210,7 @@ export function attachGentleShellRailPanel(
   tui: TUI,
   component: RailComponent,
   panelComponent: RailComponent = component,
+  groupedPanelComponent: RailComponent = panelComponent,
 ): GentleShellRailAttachment | undefined {
   if (tui.mode !== "fullscreen" || !tui.terminal) return undefined;
   const terminal = tui.terminal as unknown as CompatibleTerminal;
@@ -186,7 +228,11 @@ export function attachGentleShellRailPanel(
 
   const participantId = Symbol("rail-participant");
   const participant: Participant = {
-    component: stack.surface === "panel" ? panelComponent : component,
+    component: stack.supportsCardGroups
+      ? groupedPanelComponent
+      : stack.surface === "panel"
+      ? panelComponent
+      : component,
     visible: true,
   };
   stack.participants.set(participantId, participant);
@@ -198,6 +244,7 @@ export function attachGentleShellRailPanel(
     if (disposed) return;
     stack!.revision++;
     stack!.segments = [];
+    stack!.segmentsWidth = undefined;
     tui.requestRender();
   };
 
@@ -221,6 +268,7 @@ export function attachGentleShellRailPanel(
       stack!.participants.delete(participantId);
       stack!.revision++;
       stack!.segments = [];
+      stack!.segmentsWidth = undefined;
 
       if (stack!.participants.size === 0) {
         if (host.parts.get("footer") === stack!.wrapper) {

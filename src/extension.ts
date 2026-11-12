@@ -204,6 +204,7 @@ export default function mcpSidebarExtension(pi: ExtensionAPI): void {
             tui,
             panel,
             panel.createPanelSection(),
+            panel.createGroupedPanelSection(),
           );
           refresh();
           return panel;
