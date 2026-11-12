@@ -508,6 +508,8 @@ test("joins Gentle Shell 4.6 as a separated framed card while preserving the ove
 });
 
 test("joins current Gentle Shell as an independent native card without changing existing groups", async () => {
+  const boldCalls: string[] = [];
+  const fgCalls: Array<[string, string]> = [];
   const commands = new Map<string, CommandRegistration>();
   const events = new Map<string, (...args: any[]) => void>();
   const components: Component[] = [];
@@ -558,8 +560,14 @@ test("joins current Gentle Shell as an independent native card without changing 
           factory(
             tui,
             {
-              fg: (_tone: string, text: string) => text,
-              bold: (text: string) => text,
+              fg: (tone: string, text: string) => {
+                fgCalls.push([tone, text]);
+                return text;
+              },
+              bold: (text: string) => {
+                boldCalls.push(text);
+                return text;
+              },
               style: (text: string) => text,
             },
             {},
@@ -592,7 +600,8 @@ test("joins current Gentle Shell as an independent native card without changing 
   const expanded = wrapper.render(48);
   assert.equal(wrapper.surface, "panel");
   assert.deepEqual(expanded.slice(0, 6), integrations.render());
-  assert.ok(expanded[6]?.startsWith("▾ MCP SERVERS"));
+  assert.equal(expanded[6], "", "a surface spacer separates MCP from Integrations on tinted hosts");
+  assert.ok(expanded[7]?.startsWith("▾ MCP SERVERS"));
   assert.ok(expanded.some((line) => line.includes("demo") && !line.includes("│")));
   assert.equal(expanded.some((line) => /[╭╮╰╯]/.test(line)), false);
   assert.deepEqual(wrapper.cardGroups?.(48), {
@@ -600,17 +609,20 @@ test("joins current Gentle Shell as an independent native card without changing 
       { start: 0, end: 2 },
       { start: 2, end: 4 },
       { start: 4, end: 6 },
-      { start: 6, end: expanded.length },
+      { start: 7, end: expanded.length },
     ],
   });
   assert.ok(expanded.every((line) => visibleWidth(line) <= 48));
+  assert.ok(fgCalls.some(([tone, text]) => tone === "accent" && text === "MCP SERVERS"), "the native title follows the theme accent role");
+  assert.equal(boldCalls.includes("MCP SERVERS"), false, "the native title drops the legacy bold emphasis");
   assert.ok(components[0]?.render(48)[0]?.startsWith("╭─ MCP servers"), "overlay stays legacy");
 
   await commands.get("mcp-sidebar-collapse")?.handler("", context);
   const collapsed = wrapper.render(48);
-  assert.equal(collapsed.length, 7);
-  assert.ok(collapsed[6]?.startsWith("▸ MCP SERVERS"));
-  assert.deepEqual(wrapper.cardGroups?.(48)?.groups.at(-1), { start: 6, end: 7 });
+  assert.equal(collapsed.length, 8);
+  assert.equal(collapsed[6], "");
+  assert.ok(collapsed[7]?.startsWith("▸ MCP SERVERS"));
+  assert.deepEqual(wrapper.cardGroups?.(48)?.groups.at(-1), { start: 7, end: 8 });
 
   events.get("session_shutdown")?.();
   await Promise.resolve();

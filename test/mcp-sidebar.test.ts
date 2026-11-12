@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { visibleWidth, type Component } from "@earendil-works/pi-tui";
 
 import {
   buildMcpServers,
@@ -235,6 +235,50 @@ test("collapses to a framed card and invalidates stale namespace rows", () => {
   assert.equal(sidebar.isCollapsed(), false);
   assert.deepEqual(collapseChanges, [false]);
   assert.ok(sidebar.render(32).some((line) => line.includes("context7")));
+});
+
+test("renders a tinted spacer and native title tone for the grouped card", () => {
+  const servers = buildMcpServers(tools);
+  const expanded = renderSidebarLayout(servers, 44, (text) => text, undefined, false, "grouped-panel");
+
+  assert.equal(expanded.lines[0], "", "a tinted surface spacer separates MCP from its predecessor");
+  assert.ok(expanded.lines[1]?.startsWith("▾ MCP SERVERS"));
+  assert.ok(expanded.lines[1]?.endsWith("2 namespaces"));
+  assert.ok(expanded.lines[2]?.includes("tools registered"));
+  assert.equal(expanded.lines.some((line) => /[╭╮╰╯│]/.test(line)), false);
+  assert.ok(expanded.lines.every((line) => visibleWidth(line) <= 44));
+
+  const tones: Array<[string | undefined, string]> = [];
+  const collapsed = renderSidebarLayout(
+    servers,
+    44,
+    (text, tone) => {
+      tones.push([tone, text]);
+      return text;
+    },
+    undefined,
+    true,
+    "grouped-panel",
+  );
+  assert.deepEqual(collapsed.lines[0], "");
+  assert.ok(collapsed.lines[1]?.startsWith("▸ MCP SERVERS"));
+  assert.deepEqual(collapsed.collapseRows, [false, true]);
+  assert.ok(tones.some(([tone, text]) => tone === "railTitle" && text === "MCP SERVERS"), "the grouped title uses the native rail-title tone");
+  assert.equal(tones.some(([tone, text]) => tone === "title" && text === "MCP SERVERS"), false, "the grouped title must not use the legacy card-title tone");
+
+  const sidebar = new McpSidebar(
+    { requestRender: () => {} } as any,
+    { fg: (_t: string, text: string) => text, bold: (t: string) => t, style: (t: string) => t } as any,
+  );
+  sidebar.setServers(servers);
+  const section = sidebar.createGroupedPanelSection() as Component & {
+    cardGroups?: (width: number) => { groups: Array<{ start: number; end: number }> } | undefined;
+  };
+  assert.equal(section.render(44).length, expanded.lines.length);
+  assert.deepEqual(section.cardGroups?.(44), { groups: [{ start: 1, end: expanded.lines.length }] });
+  sidebar.setCollapsed(true);
+  const collapsedLines = section.render(44);
+  assert.deepEqual(section.cardGroups?.(44), { groups: [{ start: 1, end: collapsedLines.length }] });
 });
 
 test("renders a separated framed MCP card inside the Gentle Shell 4.6 panel", () => {

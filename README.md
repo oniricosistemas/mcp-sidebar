@@ -115,7 +115,9 @@ re-renders on its change events; builds without both methods get no status displ
 Gentle Shell integration is feature-detected through its terminal-owned rail state. The adapter
 composes the existing Status footer by identity, routes mouse coordinates using actual rendered
 heights, and restores the prior owner on disposal. A current footer that exposes `cardGroups(width)`
-keeps every existing Status group and adds MCP as an independent native group. A footer that only
+keeps every existing Status group and adds MCP as an independent native group, with one spacer
+row between MCP and the previous group on tinted surfaces that carded rails replace with their
+native gap. A footer that only
 declares `surface: "panel"` selects the 4.6 compatibility renderer, which inserts one spacer before a
 width-safe framed MCP card; an older footer keeps the standalone framed card. Compatibility therefore
 depends on host capabilities rather than parsing a package version. While that compatible wrapper remains mounted, MCP
