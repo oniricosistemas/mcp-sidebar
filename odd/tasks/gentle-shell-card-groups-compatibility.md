@@ -10,7 +10,7 @@ Branch: `fix/gentle-shell-card-groups` · Test runner: Node test runner + TypeSc
 
 ## Tasks
 
-- **T1** · S1-S3 · inline (shared footer contract; test-first; independent verification required for Risk item 3) · done · commit: pending
+- **T1** · S1-S3 · inline (shared footer contract; test-first; independent verification required for Risk item 3) · done · commit: `e5e214d`
 
 ## Log
 
@@ -24,3 +24,4 @@ Como aca no tiene la main, puede ver el repo?”
 - **L5 — RED/GREEN:** RED reproduced the current-host failure: a footer exposing `cardGroups(width)` still selected the framed 4.6 participant and the wrapper exposed no groups. GREEN composes original and participant groups with rendered-row offsets, preserves loose rows, selects native unframed MCP rows only when `cardGroups` exists, and retains the existing panel-only and standalone fallbacks. Focused tests passed 18/18; the full suite passed 50/50; TypeScript, `git diff --check`, and package dry-run passed.
 - **L6 — Independent verification:** The required Risk item 3 verifier passed S1-S3. It independently compared 80 legacy renderer combinations against `origin/main` byte-for-byte, ran candidate and baseline suites/typechecks, and probed grouped loose-row offsets, visibility, collapse, mouse routing, width refresh, invalidation, and restoration. No blocker was found. Live proof on the external WSL installation remains pending after delivery.
 - **L7 — Risk:** item 3, because the adapter wraps a shared Gentle Shell footer contract consumed by native rail sections; capability detection and independent compatibility verification bound the change.
+- **L8 — Work-unit commit:** `e5e214d` on `fix/gentle-shell-card-groups` holds T1 with tests, README capability notes, and this record. Push, PR, and merge remain separate user decisions.
