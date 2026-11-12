@@ -137,6 +137,109 @@ test("uses panel-native participant rows when Gentle Shell exposes the 4.6 panel
   assert.equal(state.parts.get("footer"), integrations);
 });
 
+test("preserves current Gentle Shell card groups and offsets grouped participants", () => {
+  const integrations = {
+    surface: "panel" as const,
+    render: () => [
+      "▾ CHANGES",
+      "  clean",
+      "▾ INTEGRATIONS",
+      "  Engram OK",
+      "  /gentle:panel",
+    ],
+    invalidate: () => {},
+    cardGroups: () => ({
+      groups: [{ start: 0, end: 2 }, { start: 2, end: 4 }],
+      loose: [4],
+    }),
+  };
+  const legacyCard: Component = {
+    render: () => ["╭─ MCP servers ─╮", "╰───────────────╯"],
+    invalidate: () => {},
+  };
+  const legacyPanel: Component = {
+    render: () => ["", "╭─ MCP servers ─╮", "╰───────────────╯"],
+    invalidate: () => {},
+  };
+  const groupedPanel: Component = {
+    render: () => ["▾ MCP SERVERS", "  ● context7       2 tools"],
+    invalidate: () => {},
+  };
+  const state = {
+    active: true,
+    ownsHost: () => true,
+    parts: new Map([[
+      "footer",
+      integrations,
+    ]]),
+  };
+  const tui = {
+    mode: "fullscreen",
+    terminal: { [GENTLE_SHELL_SIDEBAR_STATE]: state },
+    requestRender: () => {},
+  } as any;
+
+  const first = attachGentleShellRailPanel(tui, legacyCard, legacyPanel, groupedPanel);
+  const second = attachGentleShellRailPanel(tui, legacyCard, legacyPanel, {
+    render: () => ["▾ FUTURE", "  future row", "  future detail"],
+    invalidate: () => {},
+  });
+  assert.ok(first);
+  assert.ok(second);
+
+  const wrapper = state.parts.get("footer") as Component & {
+    cardGroups?: (width: number) => {
+      groups: Array<{ start: number; end: number }>;
+      loose?: number[];
+    };
+  };
+  assert.deepEqual(wrapper.render(32), [
+    "▾ CHANGES",
+    "  clean",
+    "▾ INTEGRATIONS",
+    "  Engram OK",
+    "  /gentle:panel",
+    "▾ MCP SERVERS",
+    "  ● context7       2 tools",
+    "▾ FUTURE",
+    "  future row",
+    "  future detail",
+  ]);
+  assert.deepEqual(wrapper.cardGroups?.(32), {
+    groups: [
+      { start: 0, end: 2 },
+      { start: 2, end: 4 },
+      { start: 5, end: 7 },
+      { start: 7, end: 10 },
+    ],
+    loose: [4],
+  });
+
+  first!.setVisible(false);
+  assert.deepEqual(wrapper.render(32), [
+    "▾ CHANGES",
+    "  clean",
+    "▾ INTEGRATIONS",
+    "  Engram OK",
+    "  /gentle:panel",
+    "▾ FUTURE",
+    "  future row",
+    "  future detail",
+  ]);
+  assert.deepEqual(wrapper.cardGroups?.(32), {
+    groups: [
+      { start: 0, end: 2 },
+      { start: 2, end: 4 },
+      { start: 5, end: 8 },
+    ],
+    loose: [4],
+  });
+
+  first!.dispose();
+  second!.dispose();
+  assert.equal(state.parts.get("footer"), integrations);
+});
+
 test("includes participant digests so native rail height caches cannot go stale", () => {
   const status = {
     render: () => ["Status"],
