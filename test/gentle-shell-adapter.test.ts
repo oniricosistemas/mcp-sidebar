@@ -161,9 +161,12 @@ test("preserves current Gentle Shell card groups and offsets grouped participant
     render: () => ["", "╭─ MCP servers ─╮", "╰───────────────╯"],
     invalidate: () => {},
   };
-  const groupedPanel: Component = {
-    render: () => ["▾ MCP SERVERS", "  ● context7       2 tools"],
+  const groupedPanel: Component & {
+    cardGroups?: (width: number) => { groups: Array<{ start: number; end: number }> };
+  } = {
+    render: () => ["", "▾ MCP SERVERS", "  ● context7       2 tools"],
     invalidate: () => {},
+    cardGroups: () => ({ groups: [{ start: 1, end: 3 }] }),
   };
   const state = {
     active: true,
@@ -199,21 +202,28 @@ test("preserves current Gentle Shell card groups and offsets grouped participant
     "▾ INTEGRATIONS",
     "  Engram OK",
     "  /gentle:panel",
+    "",
     "▾ MCP SERVERS",
     "  ● context7       2 tools",
     "▾ FUTURE",
     "  future row",
     "  future detail",
   ]);
-  assert.deepEqual(wrapper.cardGroups?.(32), {
+  const composed = wrapper.cardGroups?.(32);
+  assert.deepEqual(composed, {
     groups: [
       { start: 0, end: 2 },
       { start: 2, end: 4 },
-      { start: 5, end: 7 },
-      { start: 7, end: 10 },
+      { start: 6, end: 8 },
+      { start: 8, end: 11 },
     ],
     loose: [4],
   });
+  assert.equal(
+    composed?.groups.every(({ start, end }) => start > 5 || end <= 5),
+    true,
+    "no composed group may claim the participant's tinted spacer row",
+  );
 
   first!.setVisible(false);
   assert.deepEqual(wrapper.render(32), [

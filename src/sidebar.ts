@@ -13,6 +13,7 @@ export type SidebarTone =
   | "border"
   | "dim"
   | "error"
+  | "railTitle"
   | "selected"
   | "success"
   | "text"
@@ -108,14 +109,17 @@ export function renderSidebarLayout(
   }
 
   if (surface === "grouped-panel") {
+    // One leading spacer keeps MCP off its predecessor on tinted surfaces.
+    // The section's cardGroups metadata starts at row 1, so carded rails drop
+    // the spacer and insert their own gap between cards instead.
     const header = columns(
-      `${paint(collapsed ? "▸" : "▾", "dim")} ${paint("MCP SERVERS", "title")}`,
+      `${paint(collapsed ? "▸" : "▾", "dim")} ${paint("MCP SERVERS", "railTitle")}`,
       paint(namespaceLabel, "dim"),
       safeWidth,
     );
-    const lines = [header];
-    const rowIds: (string | undefined)[] = [undefined];
-    const collapseRows = [true];
+    const lines = ["", header];
+    const rowIds: (string | undefined)[] = [undefined, undefined];
+    const collapseRows = [false, true];
     if (collapsed) return { lines, rowIds, collapseRows };
 
     lines.push(panelRow(paint("tools registered", "dim"), "", safeWidth, paint));
@@ -360,6 +364,9 @@ export class McpSidebar implements Component {
       width,
       (text, tone = "text") => {
         switch (tone) {
+          case "railTitle":
+            // Rail card headers carry the accent role without the bold card-title emphasis.
+            return this.theme.fg("accent", text);
           case "title":
             return this.theme.fg("accent", this.theme.bold(text));
           case "border":
@@ -388,11 +395,19 @@ export class McpSidebar implements Component {
     };
   }
 
-  createGroupedPanelSection(): Component & { digest(): string } {
+  createGroupedPanelSection(): Component & {
+    digest(): string;
+    cardGroups?(width: number): { groups: Array<{ start: number; end: number }> } | undefined;
+  } {
     return {
       render: (width: number) => this.renderSurface(width, "grouped-panel"),
       invalidate: () => this.invalidate(),
       digest: () => this.digest(),
+      // The spacer row stays outside the group: carded rails drop it and add
+      // their own gap, while tinted rails render it as the visual spacer.
+      cardGroups: (width: number) => ({
+        groups: [{ start: 1, end: this.renderSurface(width, "grouped-panel").length }],
+      }),
       handleMouse: (event: TuiMouseEvent) => this.handleMouse(event),
     };
   }
