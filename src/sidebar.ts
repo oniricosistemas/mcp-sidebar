@@ -78,7 +78,12 @@ function panelRow(
   selected = false,
 ): string {
   const content = columns(`  ${left}`, right, width);
-  return selected ? paint(content, "selected") : content;
+  if (!selected) return content;
+  // Carded (transparent) hosts strip the two-column indent only from rows that
+  // literally start with it; a selected row painted over the indent starts with
+  // its escape code instead, reads two columns wider, and is re-truncated with
+  // an ellipsis that breaks the card frame. The background starts after it.
+  return `  ${paint(columns(left, right, Math.max(0, width - 2)), "selected")}`;
 }
 
 export function renderSidebarLayout(

@@ -237,6 +237,28 @@ test("collapses to a framed card and invalidates stale namespace rows", () => {
   assert.ok(sidebar.render(32).some((line) => line.includes("context7")));
 });
 
+test("keeps the hovered grouped row strippable for carded hosts", () => {
+  const servers = buildMcpServers(tools);
+  // Carded (transparent) hosts wrap group body rows in their own card frame and
+  // strip the two-column indent only from rows that literally start with it; a
+  // row two columns wider than that contract is re-truncated with an ellipsis.
+  const paint = (text: string, tone?: string) =>
+    tone === "selected" ? `\x1b[44m${text}\x1b[49m` : text;
+  const { lines, rowIds } = renderSidebarLayout(
+    servers,
+    44,
+    paint,
+    servers[1]!.id,
+    false,
+    "grouped-panel",
+  );
+  const hovered = lines[rowIds.indexOf(servers[1]!.id)]!;
+  assert.ok(hovered.startsWith("  "), "the selected row keeps its two-column indent unpainted so carded hosts can strip it");
+  assert.equal(visibleWidth(hovered), 44, "the selected row still fills the render width exactly");
+  assert.equal(visibleWidth(hovered.slice(2)), 42, "after the host strips the indent, the row fits the card body without re-truncation");
+  assert.ok(hovered.slice(2).startsWith("\x1b[44m"), "the selection background starts after the stripped indent");
+});
+
 test("renders a tinted spacer and native title tone for the grouped card", () => {
   const servers = buildMcpServers(tools);
   const expanded = renderSidebarLayout(servers, 44, (text) => text, undefined, false, "grouped-panel");
